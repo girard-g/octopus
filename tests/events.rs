@@ -132,6 +132,62 @@ async fn event_update_bad_contact_id_is_400(pool: sqlx::PgPool) {
 }
 
 #[sqlx::test]
+async fn event_update_rejects_empty_title(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+    let (_, e) = send(
+        &app,
+        json_req("POST", "/api/events", json!({"title":"X","starts_at":"2026-07-01T10:00:00Z","ends_at":"2026-07-01T11:00:00Z"}))
+            .with_cookie(&cookie),
+    )
+    .await;
+    let id = e["id"].as_str().unwrap().to_string();
+    let (status, _) = send(
+        &app,
+        json_req("PUT", &format!("/api/events/{id}"), json!({"title":"","starts_at":"2026-07-01T10:00:00Z","ends_at":"2026-07-01T11:00:00Z"}))
+            .with_cookie(&cookie),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+}
+
+#[sqlx::test]
+async fn event_update_rejects_ends_before_starts(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+    let (_, e) = send(
+        &app,
+        json_req("POST", "/api/events", json!({"title":"X","starts_at":"2026-07-01T10:00:00Z","ends_at":"2026-07-01T11:00:00Z"}))
+            .with_cookie(&cookie),
+    )
+    .await;
+    let id = e["id"].as_str().unwrap().to_string();
+    let (status, _) = send(
+        &app,
+        json_req("PUT", &format!("/api/events/{id}"), json!({"title":"X","starts_at":"2026-07-01T11:00:00Z","ends_at":"2026-07-01T10:00:00Z"}))
+            .with_cookie(&cookie),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+}
+
+#[sqlx::test]
+async fn event_from_only_filter_returns_ok(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+    let (status, list) = send(
+        &app,
+        json_req("GET", "/api/events?from=2026-07-01T00:00:00Z", json!(null)).with_cookie(&cookie),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(list.is_array());
+}
+
+#[sqlx::test]
 async fn event_range_filter(pool: sqlx::PgPool) {
     std::env::set_var("APP_PASSWORD", "secret");
     let app = test_app(pool);
