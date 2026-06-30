@@ -7,6 +7,7 @@ use sqlx::PgPool;
 use std::net::SocketAddr;
 
 use crate::auth::{login, logout};
+use crate::routes::contacts;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -25,6 +26,11 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/health", get(health))
         .route("/api/login", post(login))
         .route("/api/logout", post(logout))
+        .route("/api/contacts", get(contacts::list).post(contacts::create))
+        .route(
+            "/api/contacts/{id}",
+            get(contacts::get).put(contacts::update).delete(contacts::delete),
+        )
         .with_state(state)
 }
 

@@ -32,3 +32,32 @@ pub fn json_req(method: &str, uri: &str, body: serde_json::Value) -> Request<Bod
         .body(Body::from(body.to_string()))
         .unwrap()
 }
+
+pub async fn login(app: &Router, password: &str) -> String {
+    let resp = app
+        .clone()
+        .oneshot(json_req("POST", "/api/login", serde_json::json!({ "password": password })))
+        .await
+        .unwrap();
+    resp.headers()
+        .get("set-cookie")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .split(';')
+        .next()
+        .unwrap()
+        .to_string()
+}
+
+pub trait WithCookie {
+    fn with_cookie(self, cookie: &str) -> Self;
+}
+
+impl WithCookie for Request<Body> {
+    fn with_cookie(mut self, cookie: &str) -> Self {
+        self.headers_mut()
+            .insert("cookie", cookie.parse().unwrap());
+        self
+    }
+}

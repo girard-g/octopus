@@ -25,4 +25,13 @@ async fn login_accepts_right_password_and_sets_cookie(pool: sqlx::PgPool) {
     assert!(resp.headers().get("set-cookie").is_some());
 }
 
-// protected_route_401 (AuthUser extractor) is exercised in Task 5 once /api/contacts exists
+#[sqlx::test]
+async fn protected_route_401_without_cookie(pool: sqlx::PgPool) {
+    let app = test_app(pool);
+    let req = axum::http::Request::builder()
+        .uri("/api/contacts")
+        .body(axum::body::Body::empty())
+        .unwrap();
+    let (status, _) = send(&app, req).await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+}
