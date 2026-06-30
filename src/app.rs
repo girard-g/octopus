@@ -8,6 +8,7 @@ use std::net::SocketAddr;
 
 use crate::auth::{login, logout};
 use crate::routes::contacts;
+use crate::routes::dashboard;
 use crate::routes::projects;
 use crate::routes::tasks;
 
@@ -41,6 +42,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/projects/{id}/move", patch(projects::move_))
         .route("/api/tasks", get(tasks::list).post(tasks::create))
         .route("/api/tasks/{id}", axum::routing::put(tasks::update).delete(tasks::delete))
+        .route("/api/dashboard", get(dashboard::get))
         .with_state(state)
 }
 
