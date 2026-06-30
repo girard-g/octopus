@@ -38,8 +38,8 @@ frontend/
     App.svelte           # router outlet + auth gate + nav shell
     lib/
       api.js             # fetch wrapper (get/post/put/patch/del) + 401 handling
-      session.js         # $state-based auth store + helpers
-      contacts.js        # client-side cache/helpers for joining contact names (optional)
+      session.svelte.js  # $state-based auth store (runes require .svelte.js)
+      guard.js           # pure auth-gate decision helper (unit-tested)
     routes/
       Login.svelte
       Dashboard.svelte
@@ -49,6 +49,7 @@ frontend/
       Nav.svelte
       Modal.svelte       # small reusable dialog for forms
     lib/api.test.js      # vitest: wrapper behavior
+    lib/guard.test.js    # vitest: auth-gate decision logic
     lib/pipeline.test.js # vitest: column/move payload logic
 Dockerfile               # +Node build stage (modified)
 .dockerignore            # +frontend/node_modules, frontend/dist (modified)
@@ -435,8 +436,53 @@ git commit -m "feat(web): login screen"
 - Replace: `frontend/src/App.svelte`
 
 **Interfaces:**
-- Consumes: `svelte-spa-router` `Router`, the route components, `session` store, `api.post` (logout).
-- Produces: hash routes `'/'`→Dashboard, `'/contacts'`→Contacts, `'/pipeline'`→Pipeline, `'/login'`→Login. Unauthenticated access to any non-login route redirects to `/login`. `Nav` shows links + logout.
+- Consumes: `svelte-spa-router` `Router`, the route components, `session` store, `guard.shouldRedirectToLogin`, `api.post` (logout).
+- Produces: hash routes `'/'`→Dashboard, `'/contacts'`→Contacts, `'/pipeline'`→Pipeline, `'/login'`→Login. Unauthenticated access to any non-login route redirects to `/login`. `Nav` shows links + logout. The redirect decision lives in a pure, unit-tested `guard.js` helper so the foundation is verified before feature views build on it.
+
+- [ ] **Step 0a: Write `frontend/src/lib/guard.js` (pure gate logic)**
+
+```js
+// Pure decision for the auth gate — no runes, no DOM, trivially unit-testable.
+// Redirect to /login only once the session probe finished, we're not authed,
+// and we're not already on the login route.
+export function shouldRedirectToLogin(ready, authed, location) {
+  return ready && !authed && location !== '/login'
+}
+
+// Show the app chrome (nav) only when authed and off the login route.
+export function showChrome(authed, location) {
+  return authed && location !== '/login'
+}
+```
+
+- [ ] **Step 0b: Write `frontend/src/lib/guard.test.js` (Vitest)**
+
+```js
+import { describe, it, expect } from 'vitest'
+import { shouldRedirectToLogin, showChrome } from './guard.js'
+
+describe('auth gate', () => {
+  it('does not redirect before the session probe completes', () => {
+    expect(shouldRedirectToLogin(false, false, '/')).toBe(false)
+  })
+  it('redirects an unauthed user off a protected route', () => {
+    expect(shouldRedirectToLogin(true, false, '/')).toBe(true)
+  })
+  it('does not redirect when already on /login', () => {
+    expect(shouldRedirectToLogin(true, false, '/login')).toBe(false)
+  })
+  it('does not redirect an authed user', () => {
+    expect(shouldRedirectToLogin(true, true, '/')).toBe(false)
+  })
+  it('shows chrome only when authed and off login', () => {
+    expect(showChrome(true, '/')).toBe(true)
+    expect(showChrome(true, '/login')).toBe(false)
+    expect(showChrome(false, '/')).toBe(false)
+  })
+})
+```
+
+Run: `cd frontend && npm run test` → guard tests pass (with the api tests from Task 2).
 
 - [ ] **Step 1: Write `frontend/src/lib/components/Nav.svelte`**
 
@@ -486,6 +532,7 @@ git commit -m "feat(web): login screen"
   import Contacts from './routes/Contacts.svelte'
   import Pipeline from './routes/Pipeline.svelte'
   import { getAuthed, markLoggedIn } from './lib/session.svelte.js'
+  import { shouldRedirectToLogin, showChrome } from './lib/guard.js'
   import { api } from './lib/api.js'
 
   const routes = {
@@ -505,16 +552,16 @@ git commit -m "feat(web): login screen"
       .finally(() => { ready = true })
   })
 
-  // Auth gate: if not authed and not already on /login, redirect.
+  // Auth gate: pure decision in guard.js (unit-tested), applied here.
   $effect(() => {
-    if (ready && !getAuthed() && $location !== '/login') push('/login')
+    if (shouldRedirectToLogin(ready, getAuthed(), $location)) push('/login')
   })
 </script>
 
 {#if !ready}
   <div class="p-6 text-slate-500">Loading…</div>
 {:else}
-  {#if getAuthed() && $location !== '/login'}
+  {#if showChrome(getAuthed(), $location)}
     <Nav />
   {/if}
   <main class="mx-auto max-w-5xl p-4">
@@ -550,9 +597,29 @@ Expected: build succeeds.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add frontend/src/App.svelte frontend/src/lib/components/Nav.svelte frontend/src/routes/
-git commit -m "feat(web): app shell, hash router, auth gate, nav"
+git add frontend/src/App.svelte frontend/src/lib/components/Nav.svelte frontend/src/lib/guard.js frontend/src/lib/guard.test.js frontend/src/routes/
+git commit -m "feat(web): app shell, hash router, auth gate (guard.js), nav"
 ```
+
+- [ ] **Step 6: Runtime smoke (controller-run, before any feature view)**
+
+The whole UI rests on three foundation idioms that *compile clean even if subtly wrong* and would otherwise only surface at the final e2e: module-level `$state` reactivity read across files (`getAuthed()`), `svelte-spa-router` wiring (`Router`/`$location`/`use:link`/`push`), and the auth-gate effect. Verify the foundation NOW, after Task 4, not after three views are built on it.
+
+Build + serve the real artifact and confirm it loads, then drive the auth flow in a browser:
+
+```bash
+# API (uses the local octopus role/db from README)
+export DATABASE_URL=postgres://octopus:octopus@localhost:5432/octopus
+export SESSION_SECRET=$(openssl rand -hex 48)
+export APP_PASSWORD=dev-password PORT=8090
+cargo run &                 # leave running
+cd frontend && npm run build # emits to ../static
+curl -fsS localhost:8090/ | grep -q '<div id="app">' && echo "index served OK"
+curl -fsS localhost:8090/assets/ -o /dev/null -w "assets dir status: %{http_code}\n" || true
+```
+Then open http://localhost:8090 in a browser and confirm: logged-out load redirects to `#/login`; wrong password errors; `dev-password` reaches the dashboard stub; nav appears; logout returns to login and a reload stays logged out. If the gate logic itself is suspect, the `guard.test.js` unit tests already pin it — a failure here is router/reactivity wiring, fix before Task 5.
+
+(The pure-logic gate is unit-tested in Step 0b; this step verifies the runtime wiring the unit test can't reach.)
 
 ---
 
@@ -686,8 +753,14 @@ git commit -m "feat(web): dashboard view"
   let { title, onclose, children } = $props()
 </script>
 
-<div class="fixed inset-0 z-10 flex items-center justify-center bg-black/30" onclick={onclose}>
-  <div class="w-96 rounded-lg bg-white p-5 shadow-xl" onclick={(e) => e.stopPropagation()}>
+<svelte:window onkeydown={(e) => { if (e.key === 'Escape') onclose() }} />
+
+<!-- Backdrop closes on click; Escape + the ✕ button give keyboard access, so the
+     static backdrop is presentational. svelte-ignore keeps build output pristine. -->
+<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+<div class="fixed inset-0 z-10 flex items-center justify-center bg-black/30" role="presentation" onclick={onclose}>
+  <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+  <div class="w-96 rounded-lg bg-white p-5 shadow-xl" role="dialog" aria-modal="true" onclick={(e) => e.stopPropagation()}>
     <div class="mb-3 flex items-center justify-between">
       <h2 class="font-semibold text-slate-800">{title}</h2>
       <button onclick={onclose} class="text-slate-400 hover:text-slate-700">✕</button>
@@ -696,6 +769,8 @@ git commit -m "feat(web): dashboard view"
   </div>
 </div>
 ```
+
+(Build output must stay pristine — these `svelte-ignore` lines + `role`/`aria-modal` + the Escape handler suppress the a11y warnings the backdrop `onclick` would otherwise emit.)
 
 - [ ] **Step 2: Write `frontend/src/routes/Contacts.svelte`**
 
