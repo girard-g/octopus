@@ -1,10 +1,12 @@
 use axum::extract::FromRef;
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::{Json, Router};
 use axum_extra::extract::cookie::Key;
 use serde_json::json;
 use sqlx::PgPool;
 use std::net::SocketAddr;
+
+use crate::auth::{login, logout};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -21,6 +23,8 @@ impl FromRef<AppState> for Key {
 pub fn build_router(state: AppState) -> Router {
     Router::new()
         .route("/api/health", get(health))
+        .route("/api/login", post(login))
+        .route("/api/logout", post(logout))
         .with_state(state)
 }
 
