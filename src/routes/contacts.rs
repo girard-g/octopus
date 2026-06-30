@@ -41,7 +41,13 @@ pub async fn create(
     .bind(&input.phone)
     .bind(input.company_id)
     .fetch_one(&s.pool)
-    .await?;
+    .await
+    .map_err(|e| match e {
+        sqlx::Error::Database(ref db) if db.is_foreign_key_violation() => {
+            AppError::BadRequest("company_id does not exist".into())
+        }
+        other => AppError::Db(other),
+    })?;
     Ok((StatusCode::CREATED, Json(row)))
 }
 
@@ -76,7 +82,13 @@ pub async fn update(
     .bind(&input.phone)
     .bind(input.company_id)
     .fetch_optional(&s.pool)
-    .await?
+    .await
+    .map_err(|e| match e {
+        sqlx::Error::Database(ref db) if db.is_foreign_key_violation() => {
+            AppError::BadRequest("company_id does not exist".into())
+        }
+        other => AppError::Db(other),
+    })?
     .ok_or(AppError::NotFound)?;
     Ok(Json(row))
 }

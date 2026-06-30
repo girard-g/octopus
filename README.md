@@ -11,3 +11,13 @@
 
 Local dev: copy `.env.example` to `.env`, run a local Postgres, then `cargo run`.
 Run `cargo test` against a local Postgres (it creates isolated test databases).
+
+## API notes
+
+- All `PUT /api/{resource}/{id}` endpoints are **full-replace**: send the
+  complete object. Any field omitted from the body is reset to its
+  default/null (e.g. omitting `email` on a contact PUT clears it). The intended
+  client flow is fetch → modify → send the whole object back.
+- **Exception:** a project's `status` and `board_order` are NOT changed by
+  `PUT /api/projects/{id}`; they are owned by `PATCH /api/projects/{id}/move`.
+  A project PUT preserves the existing pipeline status.

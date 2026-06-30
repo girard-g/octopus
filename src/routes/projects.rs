@@ -98,16 +98,13 @@ pub async fn update(
     if input.title.trim().is_empty() {
         return Err(AppError::BadRequest("title is required".into()));
     }
-    let status = input.status.clone().unwrap_or_else(|| "lead".to_string());
-    check_status(&status)?;
     let row = sqlx::query_as::<_, Project>(
-        "update project set contact_id=$2, title=$3, status=$4, description=$5, invoice_url=$6 \
+        "update project set contact_id=$2, title=$3, description=$4, invoice_url=$5 \
          where id=$1 returning *",
     )
     .bind(id)
     .bind(input.contact_id)
     .bind(&input.title)
-    .bind(&status)
     .bind(&input.description)
     .bind(&input.invoice_url)
     .fetch_optional(&s.pool)

@@ -14,6 +14,13 @@ async fn main() {
     let port: u16 = std::env::var("PORT").ok().and_then(|p| p.parse().ok()).unwrap_or(8080);
     let secret = std::env::var("SESSION_SECRET").expect("SESSION_SECRET must be set");
     assert!(secret.len() >= 64, "SESSION_SECRET must be at least 64 bytes");
+    assert!(
+        secret != "at-least-64-bytes-of-random-base64-or-hex-please-change-this-value-now",
+        "SESSION_SECRET is still the .env.example placeholder — generate a real secret (openssl rand -hex 48)"
+    );
+
+    let app_password = std::env::var("APP_PASSWORD").expect("APP_PASSWORD must be set");
+    assert!(!app_password.is_empty(), "APP_PASSWORD must not be empty");
 
     let pool = connect_and_migrate(&database_url).await.expect("db connect/migrate failed");
     let key = Key::from(secret.as_bytes());

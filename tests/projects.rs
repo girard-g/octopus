@@ -73,6 +73,21 @@ async fn project_rejects_bad_status(pool: sqlx::PgPool) {
 }
 
 #[sqlx::test]
+async fn project_update_preserves_status(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+    let contact_id = make_contact(&app, &cookie).await;
+    let (_, p) = send(&app, json_req("POST", "/api/projects", json!({"contact_id": contact_id, "title":"A","status":"active"})).with_cookie(&cookie)).await;
+    let id = p["id"].as_str().unwrap().to_string();
+    // PUT without status must NOT reset status to lead
+    let (status, upd) = send(&app, json_req("PUT", &format!("/api/projects/{id}"), json!({"contact_id": contact_id, "title":"A renamed"})).with_cookie(&cookie)).await;
+    assert_eq!(status, axum::http::StatusCode::OK);
+    assert_eq!(upd["status"], "active");
+    assert_eq!(upd["title"], "A renamed");
+}
+
+#[sqlx::test]
 async fn project_update_rejects_bad_contact_id(pool: sqlx::PgPool) {
     std::env::set_var("APP_PASSWORD", "secret");
     let app = test_app(pool);
