@@ -6,7 +6,9 @@
 
 **Architecture:** A single Rust + Axum service exposes a JSON API and (later, in 1B) serves the Svelte static build. Postgres via `sqlx` with embedded migrations run at startup. Single-user auth via a signed session cookie; protected routes use an `AuthUser` extractor. The router is built by one `build_router(state)` function so tests exercise the exact production wiring.
 
-**Tech Stack:** Rust (edition 2021), Axum 0.7, sqlx 0.7 (Postgres, runtime queries), axum-extra signed cookies, uuid, chrono, tracing. Tests via `#[sqlx::test]` + `tower::ServiceExt::oneshot`.
+**Tech Stack:** Rust (edition 2021), Axum 0.8, sqlx 0.8 (Postgres, runtime queries), axum-extra 0.10 signed cookies, uuid, chrono, tracing. Tests via `#[sqlx::test]` + `tower::ServiceExt::oneshot`.
+
+> **Verified:** the exact `Cargo.toml`, the `AuthUser` extractor, signed-cookie API, and `{id}` route syntax in this plan were compiled and route-tested against this toolchain (cargo 1.95 / axum 0.8.9 / axum-extra 0.10.3 / sqlx 0.8.6) before the plan was finalized. Two non-obvious pins matter: `tower` needs `features=["util"]` for `oneshot`, and `time` must be held at `=0.3.41` because `cookie 0.18.1` (pulled by axum-extra) does not compile against `time 0.3.52`.
 
 ## Global Constraints
 
@@ -73,10 +75,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-axum = "0.7"
-axum-extra = { version = "0.9", features = ["cookie-signed"] }
+axum = "0.8"
+axum-extra = { version = "0.10", features = ["cookie-signed"] }
 tokio = { version = "1", features = ["full"] }
-tower = "0.5"
+tower = { version = "0.5", features = ["util"] }   # "util" provides ServiceExt::oneshot used by tests
 tower-http = { version = "0.6", features = ["fs", "trace", "cors"] }
 sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono", "migrate"] }
 serde = { version = "1", features = ["derive"] }
@@ -88,10 +90,12 @@ dotenvy = "0.15"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 thiserror = "2"
+# Transitive-compat pin: cookie 0.18.1 (via axum-extra) fails to build against time 0.3.52.
+# Hold time at a pre-0.3.52 release. Remove once axum-extra/cookie ship a fix.
+time = "=0.3.41"
 
 [dev-dependencies]
 http-body-util = "0.1"
-mime = "0.3"
 ```
 
 - [ ] **Step 2: Create `.gitignore`**
@@ -563,7 +567,8 @@ pub async fn login(jar: SignedCookieJar, Json(body): Json<LoginBody>) -> Respons
 }
 
 pub async fn logout(jar: SignedCookieJar) -> Response {
-    let jar = jar.remove(Cookie::from(COOKIE_NAME));
+    // Removal cookie must carry the same path as the one set at login, or the browser won't clear it.
+    let jar = jar.remove(Cookie::build((COOKIE_NAME, "")).path("/").build());
     (jar, StatusCode::NO_CONTENT).into_response()
 }
 
@@ -758,16 +763,16 @@ git commit -m "feat: shared row + payload models"
 - Produces routes (all require `AuthUser`):
   - `GET /api/contacts` → `200 [Contact]`
   - `POST /api/contacts` (ContactInput) → `201 Contact`
-  - `GET /api/contacts/:id` → `200 Contact` / 404
-  - `PUT /api/contacts/:id` (ContactInput) → `200 Contact` / 404
-  - `DELETE /api/contacts/:id` → 204 / 404
+  - `GET /api/contacts/{id}` → `200 Contact` / 404
+  - `PUT /api/contacts/{id}` (ContactInput) → `200 Contact` / 404
+  - `DELETE /api/contacts/{id}` → 204 / 404
 
 - [ ] **Step 1: Write `tests/contacts.rs` (failing)**
 
 ```rust
 mod helpers;
 use axum::http::StatusCode;
-use helpers::{json_req, login, send, test_app};
+use helpers::{json_req, login, send, test_app, WithCookie};
 use serde_json::json;
 
 #[sqlx::test]
@@ -980,7 +985,7 @@ use crate::routes::contacts;
 // ...
         .route("/api/contacts", get(contacts::list).post(contacts::create))
         .route(
-            "/api/contacts/:id",
+            "/api/contacts/{id}",
             get(contacts::get).put(contacts::update).delete(contacts::delete),
         )
 ```
@@ -1011,10 +1016,10 @@ git commit -m "feat: contacts CRUD api"
 - Produces routes (auth-protected):
   - `GET /api/projects` (optional `?status=active`) → `200 [Project]` ordered by `board_order`
   - `POST /api/projects` (ProjectInput; default status `lead`) → `201 Project`
-  - `GET /api/projects/:id` → 200 / 404
-  - `PUT /api/projects/:id` (ProjectInput) → 200 / 404
-  - `PATCH /api/projects/:id/move` (ProjectMove) → `200 Project` (kanban drag: set status + board_order)
-  - `DELETE /api/projects/:id` → 204 / 404
+  - `GET /api/projects/{id}` → 200 / 404
+  - `PUT /api/projects/{id}` (ProjectInput) → 200 / 404
+  - `PATCH /api/projects/{id}/move` (ProjectMove) → `200 Project` (kanban drag: set status + board_order)
+  - `DELETE /api/projects/{id}` → 204 / 404
 
 - [ ] **Step 1: Write `tests/projects.rs` (failing)**
 
@@ -1263,10 +1268,10 @@ use axum::routing::patch;
 // ...
         .route("/api/projects", get(projects::list).post(projects::create))
         .route(
-            "/api/projects/:id",
+            "/api/projects/{id}",
             get(projects::get).put(projects::update).delete(projects::delete),
         )
-        .route("/api/projects/:id/move", patch(projects::move_))
+        .route("/api/projects/{id}/move", patch(projects::move_))
 ```
 
 - [ ] **Step 5: Run tests, verify pass**
@@ -1295,8 +1300,8 @@ git commit -m "feat: projects CRUD + kanban move endpoint"
 - Produces routes (auth-protected):
   - `GET /api/tasks` (optional `?project_id=<uuid>`) → `200 [Task]`
   - `POST /api/tasks` (TaskInput; `project_id` optional → standalone) → `201 Task`
-  - `PUT /api/tasks/:id` (TaskInput) → 200 / 404
-  - `DELETE /api/tasks/:id` → 204 / 404
+  - `PUT /api/tasks/{id}` (TaskInput) → 200 / 404
+  - `DELETE /api/tasks/{id}` → 204 / 404
 
 - [ ] **Step 1: Write `tests/tasks.rs` (failing)**
 
@@ -1483,7 +1488,7 @@ pub async fn delete(
 use crate::routes::tasks;
 // ...
         .route("/api/tasks", get(tasks::list).post(tasks::create))
-        .route("/api/tasks/:id", axum::routing::put(tasks::update).delete(tasks::delete))
+        .route("/api/tasks/{id}", axum::routing::put(tasks::update).delete(tasks::delete))
 ```
 
 - [ ] **Step 5: Run tests, verify pass**
@@ -1644,12 +1649,12 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/login", post(login))
         .route("/api/logout", post(logout))
         .route("/api/contacts", get(contacts::list).post(contacts::create))
-        .route("/api/contacts/:id", get(contacts::get).put(contacts::update).delete(contacts::delete))
+        .route("/api/contacts/{id}", get(contacts::get).put(contacts::update).delete(contacts::delete))
         .route("/api/projects", get(projects::list).post(projects::create))
-        .route("/api/projects/:id", get(projects::get).put(projects::update).delete(projects::delete))
-        .route("/api/projects/:id/move", patch(projects::move_))
+        .route("/api/projects/{id}", get(projects::get).put(projects::update).delete(projects::delete))
+        .route("/api/projects/{id}/move", patch(projects::move_))
         .route("/api/tasks", get(tasks::list).post(tasks::create))
-        .route("/api/tasks/:id", axum::routing::put(tasks::update).delete(tasks::delete))
+        .route("/api/tasks/{id}", axum::routing::put(tasks::update).delete(tasks::delete))
         .route("/api/dashboard", get(dashboard::get))
         .with_state(state);
 
