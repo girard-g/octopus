@@ -1,1 +1,116 @@
-// Implemented in a later task (Task 8).
+use axum::extract::{Path, Query, State};
+use axum::http::StatusCode;
+use axum::Json;
+use serde::Deserialize;
+use uuid::Uuid;
+
+use crate::app::AppState;
+use crate::auth::AuthUser;
+use crate::error::AppError;
+use crate::models::{Task, TaskInput, TASK_STATUSES};
+
+#[derive(Deserialize)]
+pub struct ListQuery {
+    pub project_id: Option<Uuid>,
+}
+
+fn check_status(status: &str) -> Result<(), AppError> {
+    if TASK_STATUSES.contains(&status) {
+        Ok(())
+    } else {
+        Err(AppError::BadRequest("invalid task status".into()))
+    }
+}
+
+pub async fn list(
+    _: AuthUser,
+    State(s): State<AppState>,
+    Query(q): Query<ListQuery>,
+) -> Result<Json<Vec<Task>>, AppError> {
+    let rows = match q.project_id {
+        Some(pid) => sqlx::query_as::<_, Task>(
+            "select * from task where project_id = $1 order by due_on nulls last, created_at",
+        )
+        .bind(pid)
+        .fetch_all(&s.pool)
+        .await?,
+        None => sqlx::query_as::<_, Task>("select * from task order by due_on nulls last, created_at")
+            .fetch_all(&s.pool)
+            .await?,
+    };
+    Ok(Json(rows))
+}
+
+pub async fn create(
+    _: AuthUser,
+    State(s): State<AppState>,
+    Json(input): Json<TaskInput>,
+) -> Result<(StatusCode, Json<Task>), AppError> {
+    if input.title.trim().is_empty() {
+        return Err(AppError::BadRequest("title is required".into()));
+    }
+    let status = input.status.clone().unwrap_or_else(|| "todo".to_string());
+    check_status(&status)?;
+    let row = sqlx::query_as::<_, Task>(
+        "insert into task (project_id, title, status, due_on) values ($1,$2,$3,$4) returning *",
+    )
+    .bind(input.project_id)
+    .bind(&input.title)
+    .bind(&status)
+    .bind(input.due_on)
+    .fetch_one(&s.pool)
+    .await
+    .map_err(|e| match e {
+        sqlx::Error::Database(ref db) if db.is_foreign_key_violation() => {
+            AppError::BadRequest("project_id does not exist".into())
+        }
+        other => AppError::Db(other),
+    })?;
+    Ok((StatusCode::CREATED, Json(row)))
+}
+
+pub async fn update(
+    _: AuthUser,
+    State(s): State<AppState>,
+    Path(id): Path<Uuid>,
+    Json(input): Json<TaskInput>,
+) -> Result<Json<Task>, AppError> {
+    if input.title.trim().is_empty() {
+        return Err(AppError::BadRequest("title is required".into()));
+    }
+    let status = input.status.clone().unwrap_or_else(|| "todo".to_string());
+    check_status(&status)?;
+    let row = sqlx::query_as::<_, Task>(
+        "update task set project_id=$2, title=$3, status=$4, due_on=$5 where id=$1 returning *",
+    )
+    .bind(id)
+    .bind(input.project_id)
+    .bind(&input.title)
+    .bind(&status)
+    .bind(input.due_on)
+    .fetch_optional(&s.pool)
+    .await
+    .map_err(|e| match e {
+        sqlx::Error::Database(ref db) if db.is_foreign_key_violation() => {
+            AppError::BadRequest("project_id does not exist".into())
+        }
+        other => AppError::Db(other),
+    })?
+    .ok_or(AppError::NotFound)?;
+    Ok(Json(row))
+}
+
+pub async fn delete(
+    _: AuthUser,
+    State(s): State<AppState>,
+    Path(id): Path<Uuid>,
+) -> Result<StatusCode, AppError> {
+    let res = sqlx::query("delete from task where id = $1")
+        .bind(id)
+        .execute(&s.pool)
+        .await?;
+    if res.rows_affected() == 0 {
+        return Err(AppError::NotFound);
+    }
+    Ok(StatusCode::NO_CONTENT)
+}
