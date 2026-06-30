@@ -5,6 +5,7 @@
   import Dashboard from './routes/Dashboard.svelte'
   import Contacts from './routes/Contacts.svelte'
   import Pipeline from './routes/Pipeline.svelte'
+  import Calendar from './routes/Calendar.svelte'
   import Placeholder from './routes/Placeholder.svelte'
   import ProjectBoard from './routes/ProjectBoard.svelte'
   import ContactDetail from './routes/ContactDetail.svelte'
@@ -17,7 +18,7 @@
     '/contacts': Contacts,
     '/contacts/:id': ContactDetail,
     '/pipeline': Pipeline,
-    '/calendar': Placeholder,
+    '/calendar': Calendar,
     '/notes': Placeholder,
     '/projects/:id': ProjectBoard,
     '/login': Login,
