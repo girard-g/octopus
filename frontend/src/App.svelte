@@ -7,6 +7,7 @@
   import Pipeline from './routes/Pipeline.svelte'
   import Placeholder from './routes/Placeholder.svelte'
   import ProjectBoard from './routes/ProjectBoard.svelte'
+  import ContactDetail from './routes/ContactDetail.svelte'
   import { getAuthed, markLoggedIn } from './lib/session.svelte.js'
   import { shouldRedirectToLogin, showChrome } from './lib/guard.js'
   import { api } from './lib/api.js'
@@ -14,6 +15,7 @@
   const routes = {
     '/': Dashboard,
     '/contacts': Contacts,
+    '/contacts/:id': ContactDetail,
     '/pipeline': Pipeline,
     '/calendar': Placeholder,
     '/notes': Placeholder,
@@ -28,7 +30,9 @@
     '/calendar': 'Calendar', '/notes': 'Notes',
   }
   const title = $derived(
-    router.location.startsWith('/projects/') ? 'project' : (TITLES[router.location] ?? 'Dashboard')
+    router.location.startsWith('/projects/') ? 'project' :
+    router.location.startsWith('/contacts/') ? 'contact' :
+    (TITLES[router.location] ?? 'Dashboard')
   )
 
   // On first load, probe the session: a successful /api/dashboard means the

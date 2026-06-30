@@ -1,6 +1,9 @@
 <script>
+  import { push } from 'svelte-spa-router'
   import { api } from '../lib/api.js'
   import Modal from '../lib/components/Modal.svelte'
+
+  const FIELD = 'w-full rounded-sm border border-border bg-surface-2 px-2.5 py-2 font-mono text-[13px] text-ink placeholder:text-faint focus:border-accent focus:shadow-[0_0_0_3px_rgba(62,245,196,0.14)] focus:outline-none'
 
   let contacts = $state([])
   let error = $state('')
@@ -44,53 +47,94 @@
   $effect(() => { load() })
 </script>
 
-<div class="mb-4 flex items-center justify-between">
-  <h1 class="text-2xl font-bold text-slate-800">Contacts</h1>
-  <button onclick={openNew} class="rounded bg-blue-600 px-3 py-1.5 text-sm text-white">New contact</button>
+<div class="rise mb-5 flex items-center justify-between">
+  <p class="font-mono text-[12px] text-faint"><span class="text-accent-dim">//</span> manage clients and contacts</p>
+  <button
+    onclick={openNew}
+    class="inline-flex h-8 items-center gap-1.5 rounded-sm bg-accent px-3 font-mono text-[13px] font-bold text-on-accent transition glow-soft hover:brightness-110"
+  >
+    <span class="text-[15px] leading-none">+</span> New contact
+  </button>
 </div>
-{#if error}<p class="mb-3 text-red-600">{error}</p>{/if}
 
-<table class="w-full bg-white text-sm shadow-sm">
-  <thead class="border-b text-left text-slate-500">
-    <tr><th class="p-2">Name</th><th class="p-2">Kind</th><th class="p-2">Email</th><th class="p-2">Phone</th><th class="p-2"></th></tr>
-  </thead>
-  <tbody>
-    {#each contacts as c}
-      <tr class="border-b last:border-0">
-        <td class="p-2 font-medium">{c.name}</td>
-        <td class="p-2 text-slate-500">{c.kind}</td>
-        <td class="p-2">{c.email ?? ''}</td>
-        <td class="p-2">{c.phone ?? ''}</td>
-        <td class="p-2 text-right">
-          <button onclick={() => openEdit(c)} class="text-blue-600 hover:underline">Edit</button>
-          <button onclick={() => remove(c)} class="ml-2 text-red-600 hover:underline">Delete</button>
-        </td>
+{#if error}<p class="rise mb-4 rounded-sm border border-st-lost/30 bg-st-lost/10 px-3 py-2 font-mono text-[12px] text-st-lost">[ ERR ] {error}</p>{/if}
+
+<div class="rise rounded-sm border border-border bg-surface" style="animation-delay:40ms">
+  <table class="w-full border-collapse">
+    <thead>
+      <tr class="border-b border-border">
+        <th class="px-4 py-2 text-left font-mono text-[11px] text-faint">&gt; name</th>
+        <th class="px-4 py-2 text-left font-mono text-[11px] text-faint">&gt; kind</th>
+        <th class="px-4 py-2 text-left font-mono text-[11px] text-faint">&gt; email</th>
+        <th class="px-4 py-2 text-left font-mono text-[11px] text-faint">&gt; phone</th>
+        <th class="px-4 py-2"></th>
       </tr>
-    {:else}
-      <tr><td colspan="5" class="p-3 text-slate-400">No contacts yet.</td></tr>
-    {/each}
-  </tbody>
-</table>
+    </thead>
+    <tbody>
+      {#each contacts as c (c.id)}
+        <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
+        <tr
+          onclick={() => push('/contacts/' + c.id)}
+          class="cursor-pointer border-b border-border/60 transition-colors duration-100 last:border-0 hover:bg-surface-2"
+        >
+          <td class="px-4 py-2.5 font-mono text-[13px] font-medium text-ink">{c.name}</td>
+          <td class="px-4 py-2.5 font-mono text-[12px] text-muted">[ {c.kind} ]</td>
+          <td class="px-4 py-2.5 font-mono text-[12px] text-muted">{c.email ?? '—'}</td>
+          <td class="px-4 py-2.5 font-mono text-[12px] text-muted">{c.phone ?? '—'}</td>
+          <td class="px-4 py-2.5 text-right">
+            <button
+              onclick={(e) => { e.stopPropagation(); openEdit(c) }}
+              class="h-7 rounded-sm border border-border-2 px-2.5 font-mono text-[12px] text-muted transition hover:border-accent-dim hover:text-ink"
+            >edit</button>
+            <button
+              onclick={(e) => { e.stopPropagation(); remove(c) }}
+              class="ml-1.5 h-7 rounded-sm border border-st-lost/40 px-2.5 font-mono text-[12px] text-st-lost transition hover:bg-st-lost/10"
+            >delete</button>
+          </td>
+        </tr>
+      {:else}
+        <tr>
+          <td colspan="5" class="px-4 py-6 font-mono text-[12px] text-faint">no contacts yet</td>
+        </tr>
+      {/each}
+    </tbody>
+  </table>
+</div>
 
 {#if editing}
   <Modal title={editing.id ? 'Edit contact' : 'New contact'} onclose={() => (editing = null)}>
-    <form onsubmit={save} class="space-y-3">
-      <select bind:value={editing.kind} class="w-full rounded border border-slate-300 px-2 py-1.5">
-        <option value="person">Person</option>
-        <option value="company">Company</option>
-      </select>
-      <input bind:value={editing.name} placeholder="Name" required class="w-full rounded border border-slate-300 px-2 py-1.5" />
-      <input bind:value={editing.email} placeholder="Email" class="w-full rounded border border-slate-300 px-2 py-1.5" />
-      <input bind:value={editing.phone} placeholder="Phone" class="w-full rounded border border-slate-300 px-2 py-1.5" />
-      {#if editing.kind === 'person'}
-        <select bind:value={editing.company_id} class="w-full rounded border border-slate-300 px-2 py-1.5">
-          <option value={null}>— No company —</option>
-          {#each companies as co}
-            {#if co.id !== editing.id}<option value={co.id}>{co.name}</option>{/if}
-          {/each}
+    <form onsubmit={save} class="flex flex-col gap-3">
+      <div>
+        <p class="label mb-1.5">Kind</p>
+        <select bind:value={editing.kind} class={FIELD}>
+          <option value="person">Person</option>
+          <option value="company">Company</option>
         </select>
+      </div>
+      <div>
+        <p class="label mb-1.5">Name</p>
+        <input bind:value={editing.name} placeholder="Name" required class={FIELD} />
+      </div>
+      <div>
+        <p class="label mb-1.5">Email</p>
+        <input bind:value={editing.email} placeholder="Email" class={FIELD} />
+      </div>
+      <div>
+        <p class="label mb-1.5">Phone</p>
+        <input bind:value={editing.phone} placeholder="Phone" class={FIELD} />
+      </div>
+      {#if editing.kind === 'person'}
+        <div>
+          <p class="label mb-1.5">Company</p>
+          <select bind:value={editing.company_id} class={FIELD}>
+            <option value={null}>— No company —</option>
+            {#each companies as co}
+              {#if co.id !== editing.id}<option value={co.id}>{co.name}</option>{/if}
+            {/each}
+          </select>
+        </div>
       {/if}
-      <button class="w-full rounded bg-blue-600 py-2 text-white">Save</button>
+      <button class="mt-1 h-9 w-full rounded-sm bg-accent font-mono text-[13px] font-bold text-on-accent transition glow-soft hover:brightness-110">Save</button>
     </form>
   </Modal>
 {/if}
