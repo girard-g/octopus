@@ -70,3 +70,43 @@ pub struct TaskInput {
 pub const CONTACT_KINDS: [&str; 2] = ["person", "company"];
 pub const PROJECT_STATUSES: [&str; 5] = ["lead", "proposal", "active", "done", "lost"];
 pub const TASK_STATUSES: [&str; 3] = ["todo", "doing", "done"];
+
+#[derive(Debug, Serialize, sqlx::FromRow)]
+pub struct Event {
+    pub id: Uuid,
+    pub title: String,
+    pub starts_at: DateTime<Utc>,
+    pub ends_at: DateTime<Utc>,
+    pub all_day: bool,
+    pub project_id: Option<Uuid>,
+    pub contact_id: Option<Uuid>,
+    pub notes: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct EventInput {
+    pub title: String,
+    pub starts_at: DateTime<Utc>,
+    pub ends_at: DateTime<Utc>,
+    pub all_day: Option<bool>,
+    pub project_id: Option<Uuid>,
+    pub contact_id: Option<Uuid>,
+    pub notes: Option<String>,
+}
+
+#[derive(Debug, Serialize, sqlx::FromRow)]
+pub struct Note {
+    pub id: Uuid,
+    pub body: String,
+    pub contact_id: Option<Uuid>,
+    pub project_id: Option<Uuid>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct NoteInput {
+    pub body: String,
+    pub contact_id: Option<Uuid>,
+    pub project_id: Option<Uuid>,
+}

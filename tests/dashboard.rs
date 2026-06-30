@@ -20,4 +20,5 @@ async fn dashboard_aggregates(pool: sqlx::PgPool) {
     assert_eq!(d["counts"]["leads"], 1);
     assert_eq!(d["counts"]["active"], 1);
     assert_eq!(d["counts"]["open_tasks"], 1);
+    assert!(d["upcoming_events"].is_array());
 }

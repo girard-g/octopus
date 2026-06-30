@@ -5,7 +5,7 @@ use serde::Serialize;
 use crate::app::AppState;
 use crate::auth::AuthUser;
 use crate::error::AppError;
-use crate::models::{Project, Task};
+use crate::models::{Event, Project, Task};
 
 #[derive(Serialize)]
 pub struct Counts {
@@ -19,6 +19,7 @@ pub struct Dashboard {
     pub active_projects: Vec<Project>,
     pub due_tasks: Vec<Task>,
     pub counts: Counts,
+    pub upcoming_events: Vec<Event>,
 }
 
 pub async fn get(_: AuthUser, State(s): State<AppState>) -> Result<Json<Dashboard>, AppError> {
@@ -44,9 +45,16 @@ pub async fn get(_: AuthUser, State(s): State<AppState>) -> Result<Json<Dashboar
         .fetch_one(&s.pool)
         .await?;
 
+    let upcoming_events = sqlx::query_as::<_, Event>(
+        "select * from event where ends_at >= now() order by starts_at limit 5",
+    )
+    .fetch_all(&s.pool)
+    .await?;
+
     Ok(Json(Dashboard {
         active_projects,
         due_tasks,
         counts: Counts { leads, active, open_tasks },
+        upcoming_events,
     }))
 }

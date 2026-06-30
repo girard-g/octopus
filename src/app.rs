@@ -10,6 +10,8 @@ use tower_http::services::{ServeDir, ServeFile};
 use crate::auth::{login, logout};
 use crate::routes::contacts;
 use crate::routes::dashboard;
+use crate::routes::events;
+use crate::routes::notes;
 use crate::routes::projects;
 use crate::routes::tasks;
 
@@ -43,6 +45,13 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/projects/{id}/move", patch(projects::move_))
         .route("/api/tasks", get(tasks::list).post(tasks::create))
         .route("/api/tasks/{id}", axum::routing::put(tasks::update).delete(tasks::delete))
+        .route("/api/events", get(events::list).post(events::create))
+        .route(
+            "/api/events/{id}",
+            get(events::get).put(events::update).delete(events::delete),
+        )
+        .route("/api/notes", get(notes::list).post(notes::create))
+        .route("/api/notes/{id}", axum::routing::put(notes::update).delete(notes::delete))
         .route("/api/dashboard", get(dashboard::get))
         .with_state(state);
 
