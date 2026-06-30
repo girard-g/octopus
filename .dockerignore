@@ -2,3 +2,5 @@ target
 static/node_modules
 .git
 .env
+frontend/node_modules
+static
