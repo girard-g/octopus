@@ -9,8 +9,38 @@
    - `PORT` = `8080`
 4. Set the app port to `8080`. Deploy. Migrations run automatically on boot.
 
-Local dev: copy `.env.example` to `.env`, run a local Postgres, then `cargo run`.
-Run `cargo test` against a local Postgres (it creates isolated test databases).
+## Local development
+
+1. Start a local Postgres (e.g. Docker):
+
+   ```bash
+   docker run -d --name octopus-pg -p 5432:5432 \
+     -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=postgres \
+     postgres:16
+   ```
+
+2. Create the `octopus` role + database it owns (matches `.env.example`). The role
+   must OWN the database, or `sqlx` migrations fail with `permission denied for
+   table _sqlx_migrations`:
+
+   ```bash
+   PGPASSWORD=postgres psql -h localhost -U postgres -c \
+     "CREATE ROLE octopus WITH LOGIN PASSWORD 'octopus';"
+   PGPASSWORD=postgres psql -h localhost -U postgres -c \
+     "CREATE DATABASE octopus OWNER octopus;"
+   ```
+
+3. Copy `.env.example` to `.env` and set **real** values:
+   - `DATABASE_URL=postgres://octopus:octopus@localhost:5432/octopus`
+   - `SESSION_SECRET` — must NOT be left as the example placeholder (the server
+     rejects it at boot). Generate one: `openssl rand -hex 48`.
+   - `APP_PASSWORD` — your login password (not empty).
+
+4. `cargo run`. Migrations run automatically on boot.
+
+Tests: `cargo test` needs `DATABASE_URL` pointing at a Postgres login role that can
+create databases (e.g. `postgres://postgres:postgres@localhost:5432/postgres`).
+`#[sqlx::test]` creates isolated databases per test.
 
 ## API notes
 
