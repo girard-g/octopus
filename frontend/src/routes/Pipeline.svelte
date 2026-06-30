@@ -64,9 +64,11 @@
   }
   async function removeProject(p) {
     if (!confirm(`Delete ${p.title}?`)) return
-    await api.del(`/api/projects/${p.id}`)
-    editing = null
-    await load()
+    try {
+      await api.del(`/api/projects/${p.id}`)
+      editing = null
+      await load()
+    } catch (e) { error = e.message }
   }
 
   $effect(() => { load() })

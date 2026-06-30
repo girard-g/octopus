@@ -34,9 +34,11 @@
   }
 
   async function remove(c) {
-    if (!confirm(`Delete ${c.name}?`)) return
-    await api.del(`/api/contacts/${c.id}`)
-    await load()
+    if (!confirm(`Delete ${c.name}? This also deletes their projects and tasks.`)) return
+    try {
+      await api.del(`/api/contacts/${c.id}`)
+      await load()
+    } catch (e) { error = e.message }
   }
 
   $effect(() => { load() })
