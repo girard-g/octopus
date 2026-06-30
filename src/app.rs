@@ -5,6 +5,7 @@ use axum_extra::extract::cookie::Key;
 use serde_json::json;
 use sqlx::PgPool;
 use std::net::SocketAddr;
+use tower_http::services::{ServeDir, ServeFile};
 
 use crate::auth::{login, logout};
 use crate::routes::contacts;
@@ -25,7 +26,7 @@ impl FromRef<AppState> for Key {
 }
 
 pub fn build_router(state: AppState) -> Router {
-    Router::new()
+    let api = Router::new()
         .route("/api/health", get(health))
         .route("/api/login", post(login))
         .route("/api/logout", post(logout))
@@ -43,7 +44,12 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/tasks", get(tasks::list).post(tasks::create))
         .route("/api/tasks/{id}", axum::routing::put(tasks::update).delete(tasks::delete))
         .route("/api/dashboard", get(dashboard::get))
-        .with_state(state)
+        .with_state(state);
+
+    let static_files =
+        ServeDir::new("static").not_found_service(ServeFile::new("static/index.html"));
+
+    api.fallback_service(static_files)
 }
 
 async fn health() -> Json<serde_json::Value> {
