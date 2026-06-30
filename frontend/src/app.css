@@ -14,7 +14,7 @@
   --color-surface-2:     #12161d;   /* hover / raised / inputs */
   --color-border:        #1b2129;   /* hairline */
   --color-border-2:      #283041;
-  --color-border-strong: #283041;   /* alias of border-2 (kept for Placeholder/scrollbar) */
+  --color-border-strong: #283041;   /* alias of border-2 (kept for scrollbar) */
   --color-ink:           #d7e0d8;   /* slightly green-tinted off-white */
   --color-muted:         #7e8a83;
   --color-faint:         #4d564f;

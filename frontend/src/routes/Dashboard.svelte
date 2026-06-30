@@ -1,12 +1,24 @@
 <script>
   import { api } from '../lib/api.js'
+  import { fmtTime } from '../lib/calendar.js'
 
   let counts = $state({ leads: 0, active: 0, open_tasks: 0 })
   let activeProjects = $state([])
   let dueTasks = $state([])
+  let upcomingEvents = $state([])
   let contactsById = $state({})
+  let projectsById = $state({})
   let newTask = $state('')
   let error = $state('')
+
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+  function fmtDate(iso) {
+    const d = new Date(iso)
+    return `${MONTHS[d.getMonth()]} ${d.getDate()}`
+  }
+  function fmtEvent(ev) {
+    return ev.all_day ? fmtDate(ev.starts_at) : `${fmtDate(ev.starts_at)} ${fmtTime(ev.starts_at)}`
+  }
 
   const tiles = $derived([
     { label: 'Leads', value: counts.leads, accent: false },
@@ -17,14 +29,17 @@
   async function load() {
     error = ''
     try {
-      const [dash, contacts] = await Promise.all([
+      const [dash, contacts, projects] = await Promise.all([
         api.get('/api/dashboard'),
         api.get('/api/contacts'),
+        api.get('/api/projects'),
       ])
       counts = dash.counts
       activeProjects = dash.active_projects
       dueTasks = dash.due_tasks
+      upcomingEvents = dash.upcoming_events ?? []
       contactsById = Object.fromEntries(contacts.map((c) => [c.id, c.name]))
+      projectsById = Object.fromEntries(projects.map((p) => [p.id, p.title]))
     } catch (e) { error = e.message }
   }
 
@@ -124,3 +139,23 @@
     </ul>
   </section>
 </div>
+
+<section class="rise mt-4 rounded-sm border border-border bg-surface" style="animation-delay:120ms">
+  <div class="flex items-center justify-between border-b border-border px-4 py-2.5">
+    <h2 class="font-mono text-[12px] font-medium text-muted"><span class="text-accent glow-text">&gt;</span> upcoming</h2>
+    <span class="font-mono text-[12px] tabular-nums text-faint">[{upcomingEvents.length}]</span>
+  </div>
+  <ul>
+    {#each upcomingEvents as ev}
+      <li class="flex items-center gap-3 border-b border-border px-4 py-2.5 last:border-0">
+        <span class="truncate font-mono text-[13px] text-ink">{ev.title}</span>
+        {#if ev.contact_id || ev.project_id}
+          <span class="shrink-0 font-mono text-[11px] text-faint">{ev.contact_id ? (contactsById[ev.contact_id] ?? '') : (projectsById[ev.project_id] ?? '')}</span>
+        {/if}
+        <span class="ml-auto shrink-0 font-mono text-[11px] tabular-nums text-faint">{fmtEvent(ev)}</span>
+      </li>
+    {:else}
+      <li class="px-4 py-6 text-center font-mono text-[13px] text-faint">// no upcoming events</li>
+    {/each}
+  </ul>
+</section>
