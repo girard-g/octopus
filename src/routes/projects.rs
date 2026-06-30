@@ -111,7 +111,13 @@ pub async fn update(
     .bind(&input.description)
     .bind(&input.invoice_url)
     .fetch_optional(&s.pool)
-    .await?
+    .await
+    .map_err(|e| match e {
+        sqlx::Error::Database(ref db) if db.is_foreign_key_violation() => {
+            AppError::BadRequest("contact_id does not exist".into())
+        }
+        other => AppError::Db(other),
+    })?
     .ok_or(AppError::NotFound)?;
     Ok(Json(row))
 }

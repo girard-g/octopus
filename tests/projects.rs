@@ -71,3 +71,22 @@ async fn project_rejects_bad_status(pool: sqlx::PgPool) {
     .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
 }
+
+#[sqlx::test]
+async fn project_update_rejects_bad_contact_id(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+    let contact_id = make_contact(&app, &cookie).await;
+    let (_, p) = send(&app, json_req("POST", "/api/projects", json!({"contact_id": contact_id, "title":"X"})).with_cookie(&cookie)).await;
+    let id = p["id"].as_str().unwrap().to_string();
+
+    // PUT with a contact_id that does not exist -> 400, not 500
+    let bogus = "00000000-0000-0000-0000-000000000000";
+    let (status, _) = send(
+        &app,
+        json_req("PUT", &format!("/api/projects/{id}"), json!({"contact_id": bogus, "title":"X"})).with_cookie(&cookie),
+    )
+    .await;
+    assert_eq!(status, axum::http::StatusCode::BAD_REQUEST);
+}
