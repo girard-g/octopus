@@ -1,0 +1,24 @@
+{
+  "name": "octopus-frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "svelte-spa-router": "^5.1.1",
+    "svelte-dnd-action": "^0.9.70"
+  },
+  "devDependencies": {
+    "svelte": "^5.56.4",
+    "vite": "^8.1.1",
+    "@sveltejs/vite-plugin-svelte": "^7.1.2",
+    "tailwindcss": "^4.3.2",
+    "@tailwindcss/vite": "^4.3.2",
+    "vitest": "^3",
+    "jsdom": "^25"
+  }
+}

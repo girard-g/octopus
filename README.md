@@ -38,6 +38,15 @@
 
 4. `cargo run`. Migrations run automatically on boot.
 
+### Frontend (web UI)
+
+- One-time: `cd frontend && npm install`.
+- Dev with hot reload: run the Rust API (`PORT=8090 cargo run`) in one terminal,
+  then `cd frontend && npm run dev` → open http://localhost:5173 (it proxies
+  `/api` to the Rust server on :8090).
+- Production build: `cd frontend && npm run build` emits the SPA into `static/`,
+  which the Rust server serves on its own port. `static/` is git-ignored.
+
 Tests: `cargo test` needs `DATABASE_URL` pointing at a Postgres login role that can
 create databases (e.g. `postgres://postgres:postgres@localhost:5432/postgres`).
 `#[sqlx::test]` creates isolated databases per test.
