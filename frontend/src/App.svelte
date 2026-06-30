@@ -6,6 +6,7 @@
   import Contacts from './routes/Contacts.svelte'
   import Pipeline from './routes/Pipeline.svelte'
   import Placeholder from './routes/Placeholder.svelte'
+  import ProjectBoard from './routes/ProjectBoard.svelte'
   import { getAuthed, markLoggedIn } from './lib/session.svelte.js'
   import { shouldRedirectToLogin, showChrome } from './lib/guard.js'
   import { api } from './lib/api.js'
@@ -16,6 +17,7 @@
     '/pipeline': Pipeline,
     '/calendar': Placeholder,
     '/notes': Placeholder,
+    '/projects/:id': ProjectBoard,
     '/login': Login,
   }
 
@@ -25,7 +27,9 @@
     '/': 'Dashboard', '/contacts': 'Contacts', '/pipeline': 'Pipeline',
     '/calendar': 'Calendar', '/notes': 'Notes',
   }
-  const title = $derived(TITLES[router.location] ?? 'Dashboard')
+  const title = $derived(
+    router.location.startsWith('/projects/') ? 'project' : (TITLES[router.location] ?? 'Dashboard')
+  )
 
   // On first load, probe the session: a successful /api/dashboard means the
   // cookie is still valid; a 401 leaves us logged out and the gate redirects.

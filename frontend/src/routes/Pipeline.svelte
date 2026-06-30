@@ -1,5 +1,6 @@
 <script>
   import { dndzone } from 'svelte-dnd-action'
+  import { push } from 'svelte-spa-router'
   import { api } from '../lib/api.js'
   import { STATUSES, STATUS_LABELS, groupByStatus, movesForColumn } from '../lib/pipeline.js'
   import Modal from '../lib/components/Modal.svelte'
@@ -19,7 +20,6 @@
   let cols = $state(Object.fromEntries(STATUSES.map((s) => [s, []])))
   let error = $state('')
   let creating = $state(null)  // {contact_id, title} | null
-  let editing = $state(null)   // {...project} | null
 
   const contactsById = $derived(Object.fromEntries(contacts.map((c) => [c.id, c.name])))
 
@@ -57,30 +57,6 @@
     } catch (err) { error = err.message }
   }
 
-  function openEdit(p) { editing = { ...p } }
-  async function saveEdit(e) {
-    e.preventDefault()
-    try {
-      // PUT is full-replace but does NOT change status/board_order (server-owned via /move).
-      await api.put(`/api/projects/${editing.id}`, {
-        contact_id: editing.contact_id,
-        title: editing.title,
-        description: editing.description || null,
-        invoice_url: editing.invoice_url || null,
-      })
-      editing = null
-      await load()
-    } catch (err) { error = err.message }
-  }
-  async function removeProject(p) {
-    if (!confirm(`Delete ${p.title}?`)) return
-    try {
-      await api.del(`/api/projects/${p.id}`)
-      editing = null
-      await load()
-    } catch (e) { error = e.message }
-  }
-
   $effect(() => { load() })
 </script>
 
@@ -111,7 +87,7 @@
       >
         {#each cols[s] as p (p.id)}
           <button
-            onclick={() => openEdit(p)}
+            onclick={() => push('/projects/' + p.id)}
             class="group relative w-full overflow-hidden rounded-sm border border-border bg-surface text-left transition-all duration-100 hover:-translate-y-px hover:border-accent-dim hover:shadow-[0_0_14px_rgba(62,245,196,0.12)]"
           >
             <span class="absolute inset-y-0 left-0 w-[3px] {STATUS_STYLE[s].bar}"></span>
@@ -147,35 +123,3 @@
   </Modal>
 {/if}
 
-{#if editing}
-  <Modal title="Edit project" onclose={() => (editing = null)}>
-    <form onsubmit={saveEdit} class="flex flex-col gap-3">
-      <div>
-        <p class="label mb-1.5">Title</p>
-        <input bind:value={editing.title} placeholder="Title" required class={FIELD} />
-      </div>
-      <div>
-        <p class="label mb-1.5">Contact</p>
-        <select bind:value={editing.contact_id} class={FIELD}>
-          {#each contacts as c}<option value={c.id}>{c.name}</option>{/each}
-        </select>
-      </div>
-      <div>
-        <p class="label mb-1.5">Description</p>
-        <textarea bind:value={editing.description} placeholder="Description" rows="3" class="{FIELD} resize-none"></textarea>
-      </div>
-      <div>
-        <p class="label mb-1.5">Invoice URL</p>
-        <input bind:value={editing.invoice_url} placeholder="Indy invoice URL" class={FIELD} />
-      </div>
-      <p class="flex items-center gap-2 font-mono text-[11px] text-faint">
-        <span class="font-bold uppercase tracking-wider {STATUS_STYLE[editing.status].text}">[ {STATUS_LABELS[editing.status]} ]</span>
-        change by dragging on the board
-      </p>
-      <div class="mt-1 flex gap-2">
-        <button class="h-9 flex-1 rounded-sm bg-accent font-mono text-[13px] font-bold text-on-accent transition glow-soft hover:brightness-110">Save</button>
-        <button type="button" onclick={() => removeProject(editing)} class="h-9 rounded-sm border border-st-lost/40 px-3 font-mono text-[13px] font-medium text-st-lost transition hover:bg-st-lost/10">Delete</button>
-      </div>
-    </form>
-  </Modal>
-{/if}
