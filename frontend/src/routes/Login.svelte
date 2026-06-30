@@ -25,21 +25,29 @@
   }
 </script>
 
-<div class="flex min-h-screen items-center justify-center bg-slate-100">
-  <form onsubmit={submit} class="w-80 rounded-lg bg-white p-6 shadow">
-    <h1 class="mb-4 text-xl font-bold text-slate-800">Octopus</h1>
+<div class="relative grid min-h-screen place-items-center overflow-hidden px-4">
+  <!-- Ambient ink glow on the dark canvas. -->
+  <div class="pointer-events-none absolute left-1/2 top-[34%] h-[420px] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent/10 blur-[120px]"></div>
+
+  <form onsubmit={submit} class="rise relative w-full max-w-[340px] rounded-[10px] border border-border bg-surface p-6 shadow-[0_24px_60px_-12px_rgba(0,0,0,0.7)]">
+    <div class="mb-5 flex items-center gap-2">
+      <span class="font-mono text-[17px] font-medium tracking-tight text-ink">
+        <span class="text-accent [text-shadow:0_0_12px_rgba(69,214,196,0.55)]">🐙</span> octopus
+      </span>
+    </div>
+    <p class="label mb-1.5">Password</p>
     <input
       type="password"
       bind:value={password}
-      placeholder="Password"
+      placeholder="Enter password"
       autocomplete="current-password"
-      class="mb-3 w-full rounded border border-slate-300 px-3 py-2"
+      class="h-9 w-full rounded-md border border-border bg-surface-2 px-3 text-[13px] text-ink placeholder:text-faint transition-colors duration-100 focus:border-accent focus:shadow-[0_0_0_3px_rgba(69,214,196,0.12)] focus:outline-none"
     />
-    {#if error}<p class="mb-3 text-sm text-red-600">{error}</p>{/if}
+    {#if error}<p class="mt-3 font-mono text-[12px] text-st-lost">{error}</p>{/if}
     <button
       type="submit"
       disabled={busy}
-      class="w-full rounded bg-blue-600 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+      class="mt-4 h-9 w-full rounded-md bg-accent text-[13px] font-medium text-on-accent transition hover:brightness-110 disabled:opacity-50"
     >
       {busy ? 'Signing in…' : 'Sign in'}
     </button>

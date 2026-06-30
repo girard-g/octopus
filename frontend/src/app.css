@@ -1,1 +1,83 @@
+/* Self-hosted fonts — IBM Plex Sans (UI/body) + IBM Plex Mono (data/numbers). */
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/500.css';
+@import '@fontsource/ibm-plex-sans/600.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
 @import "tailwindcss";
+
+/* "Ink" theme tokens — drives utilities like bg-surface, text-ink, text-accent,
+   border-border, text-st-active, font-mono. */
+@theme {
+  --color-bg:            #0a0c10;
+  --color-surface:       #12151b;
+  --color-surface-2:     #171b22;
+  --color-border:        #232831;
+  --color-border-strong: #2e333d;
+  --color-ink:           #e8eaef;
+  --color-muted:         #8b929e;
+  --color-faint:         #5c636e;
+  --color-accent:        #45d6c4;
+  --color-accent-dim:    #2b8a80;
+  --color-on-accent:     #04110f;
+  --color-st-lead:       #8a93a3;
+  --color-st-proposal:   #d9a441;
+  --color-st-active:     #45d6c4;
+  --color-st-done:       #4cc38a;
+  --color-st-lost:       #e06a6a;
+
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
+}
+
+@layer base {
+  html { color-scheme: dark; }
+
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 13px;            /* dense base; rem left at 16 so spacing stays predictable */
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Accent focus ring on every interactive element (outline follows border-radius in Chromium). */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  /* Thin, faint scrollbars. */
+  * { scrollbar-width: thin; scrollbar-color: var(--color-border-strong) transparent; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background-color: var(--color-border-strong); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background-color: var(--color-muted); }
+  ::-webkit-scrollbar-track { background: transparent; }
+}
+
+/* Tabular numerals everywhere mono is used (data, counts, dates, IDs). */
+.font-mono { font-variant-numeric: tabular-nums; }
+
+/* Reusable section label: mono 11px uppercase faint. Uppercase via CSS keeps the
+   source text in its natural case (case-sensitive e2e relies on this). */
+.label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-faint);
+}
+
+/* One composed entrance: small staggered fade + translate-y. */
+@keyframes ink-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+.rise { animation: ink-rise 220ms cubic-bezier(0.2, 0.6, 0.2, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rise { animation: none; }
+}

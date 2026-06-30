@@ -9,16 +9,18 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "svelte-spa-router": "^5.1.1",
-    "svelte-dnd-action": "^0.9.70"
+    "@fontsource/ibm-plex-mono": "^5.2.7",
+    "@fontsource/ibm-plex-sans": "^5.2.8",
+    "svelte-dnd-action": "^0.9.70",
+    "svelte-spa-router": "^5.1.1"
   },
   "devDependencies": {
-    "svelte": "^5.56.4",
-    "vite": "^8.1.1",
     "@sveltejs/vite-plugin-svelte": "^7.1.2",
-    "tailwindcss": "^4.3.2",
     "@tailwindcss/vite": "^4.3.2",
-    "vitest": "^3",
-    "jsdom": "^25"
+    "jsdom": "^25",
+    "svelte": "^5.56.4",
+    "tailwindcss": "^4.3.2",
+    "vite": "^8.1.1",
+    "vitest": "^3"
   }
 }
