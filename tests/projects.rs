@@ -1,0 +1,73 @@
+mod helpers;
+use axum::http::StatusCode;
+use helpers::{json_req, login, send, test_app, WithCookie};
+use serde_json::json;
+
+async fn make_contact(app: &axum::Router, cookie: &str) -> String {
+    let (_, c) = send(app, json_req("POST", "/api/contacts", json!({"kind":"company","name":"Acme"})).with_cookie(cookie)).await;
+    c["id"].as_str().unwrap().to_string()
+}
+
+#[sqlx::test]
+async fn project_create_defaults_to_lead(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+    let contact_id = make_contact(&app, &cookie).await;
+
+    let (status, p) = send(
+        &app,
+        json_req("POST", "/api/projects", json!({"contact_id": contact_id, "title":"Website"})).with_cookie(&cookie),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED);
+    assert_eq!(p["status"], "lead");
+}
+
+#[sqlx::test]
+async fn project_move_changes_status_and_order(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+    let contact_id = make_contact(&app, &cookie).await;
+    let (_, p) = send(&app, json_req("POST", "/api/projects", json!({"contact_id": contact_id, "title":"Website"})).with_cookie(&cookie)).await;
+    let id = p["id"].as_str().unwrap().to_string();
+
+    let (status, moved) = send(
+        &app,
+        json_req("PATCH", &format!("/api/projects/{id}/move"), json!({"status":"active","board_order":2})).with_cookie(&cookie),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(moved["status"], "active");
+    assert_eq!(moved["board_order"], 2);
+}
+
+#[sqlx::test]
+async fn project_list_filters_by_status(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+    let contact_id = make_contact(&app, &cookie).await;
+    send(&app, json_req("POST", "/api/projects", json!({"contact_id": contact_id, "title":"A","status":"active"})).with_cookie(&cookie)).await;
+    send(&app, json_req("POST", "/api/projects", json!({"contact_id": contact_id, "title":"B","status":"lead"})).with_cookie(&cookie)).await;
+
+    let (status, list) = send(&app, json_req("GET", "/api/projects?status=active", json!(null)).with_cookie(&cookie)).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(list.as_array().unwrap().len(), 1);
+    assert_eq!(list[0]["title"], "A");
+}
+
+#[sqlx::test]
+async fn project_rejects_bad_status(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+    let contact_id = make_contact(&app, &cookie).await;
+    let (status, _) = send(
+        &app,
+        json_req("POST", "/api/projects", json!({"contact_id": contact_id, "title":"X","status":"wat"})).with_cookie(&cookie),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+}

@@ -1,5 +1,5 @@
 use axum::extract::FromRef;
-use axum::routing::{get, post};
+use axum::routing::{get, patch, post};
 use axum::{Json, Router};
 use axum_extra::extract::cookie::Key;
 use serde_json::json;
@@ -8,6 +8,7 @@ use std::net::SocketAddr;
 
 use crate::auth::{login, logout};
 use crate::routes::contacts;
+use crate::routes::projects;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -31,6 +32,12 @@ pub fn build_router(state: AppState) -> Router {
             "/api/contacts/{id}",
             get(contacts::get).put(contacts::update).delete(contacts::delete),
         )
+        .route("/api/projects", get(projects::list).post(projects::create))
+        .route(
+            "/api/projects/{id}",
+            get(projects::get).put(projects::update).delete(projects::delete),
+        )
+        .route("/api/projects/{id}/move", patch(projects::move_))
         .with_state(state)
 }
 
