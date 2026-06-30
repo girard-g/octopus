@@ -19,6 +19,14 @@
     '/login': Login,
   }
 
+  // Natural-case page titles (sr-only twin keeps innerText matchable for e2e
+  // even though the visible title is lowercased for the terminal look).
+  const TITLES = {
+    '/': 'Dashboard', '/contacts': 'Contacts', '/pipeline': 'Pipeline',
+    '/calendar': 'Calendar', '/notes': 'Notes',
+  }
+  const title = $derived(TITLES[router.location] ?? 'Dashboard')
+
   // On first load, probe the session: a successful /api/dashboard means the
   // cookie is still valid; a 401 leaves us logged out and the gate redirects.
   let ready = $state(false)
@@ -36,12 +44,32 @@
 </script>
 
 {#if !ready}
-  <div class="grid min-h-screen place-items-center font-mono text-[13px] text-faint">Loading…</div>
+  <div class="grid min-h-screen place-items-center font-mono text-[13px] text-faint"><span class="text-accent glow-text">&gt;</span>&nbsp;booting<span class="cursor">▋</span></div>
 {:else if showChrome(getAuthed(), router.location)}
   <div class="flex min-h-screen">
     <Sidebar />
-    <main class="min-w-0 flex-1 px-8 py-7">
-      <Router {routes} />
+    <main class="min-w-0 flex-1">
+      <div class="boot">
+        <!-- Top bar: prompt-style page title + command-bar cue. -->
+        <header class="sticky top-0 z-10 flex h-13 items-center gap-4 border-b border-border bg-bg/85 px-8 py-3 backdrop-blur">
+          <h1 class="font-mono text-[14px] font-bold tracking-tight">
+            <span class="text-accent glow-text">&gt;</span>
+            <span class="lowercase text-ink">{title}</span>
+            <span class="sr-only">{title}</span>
+          </h1>
+          <div
+            class="ml-auto flex items-center gap-2 rounded-sm border border-border bg-surface-2 px-2.5 py-1.5 font-mono text-[12px] text-faint"
+            aria-hidden="true"
+          >
+            <span class="text-accent-dim">/</span>
+            <span>search…</span>
+            <kbd class="ml-2 rounded-sm border border-border-strong bg-bg px-1.5 py-0.5 text-[11px] text-muted">⌘K</kbd>
+          </div>
+        </header>
+        <div class="px-8 py-7">
+          <Router {routes} />
+        </div>
+      </div>
     </main>
   </div>
 {:else}

@@ -4,15 +4,15 @@
   import { STATUSES, STATUS_LABELS, groupByStatus, movesForColumn } from '../lib/pipeline.js'
   import Modal from '../lib/components/Modal.svelte'
 
-  // Per-status Ink styling. Static class strings so Tailwind's scanner emits them.
+  // Per-status terminal styling. Static class strings so Tailwind's scanner emits them.
   const STATUS_STYLE = {
-    lead:     { badge: 'bg-st-lead/15 text-st-lead border-st-lead/30', edge: 'bg-st-lead' },
-    proposal: { badge: 'bg-st-proposal/15 text-st-proposal border-st-proposal/30', edge: 'bg-st-proposal' },
-    active:   { badge: 'bg-st-active/15 text-st-active border-st-active/30', edge: 'bg-st-active' },
-    done:     { badge: 'bg-st-done/15 text-st-done border-st-done/30', edge: 'bg-st-done' },
-    lost:     { badge: 'bg-st-lost/15 text-st-lost border-st-lost/30', edge: 'bg-st-lost' },
+    lead:     { text: 'text-st-lead',     bar: 'bg-st-lead' },
+    proposal: { text: 'text-st-proposal', bar: 'bg-st-proposal' },
+    active:   { text: 'text-st-active',    bar: 'bg-st-active' },
+    done:     { text: 'text-st-done',      bar: 'bg-st-done' },
+    lost:     { text: 'text-st-lost',      bar: 'bg-st-lost' },
   }
-  const FIELD = 'w-full rounded-md border border-border bg-surface-2 px-2.5 py-2 text-[13px] text-ink placeholder:text-faint focus:border-accent focus:shadow-[0_0_0_3px_rgba(69,214,196,0.12)] focus:outline-none'
+  const FIELD = 'w-full rounded-sm border border-border bg-surface-2 px-2.5 py-2 font-mono text-[13px] text-ink placeholder:text-faint focus:border-accent focus:shadow-[0_0_0_3px_rgba(62,245,196,0.14)] focus:outline-none'
 
   let projects = $state([])
   let contacts = $state([])
@@ -84,31 +84,27 @@
   $effect(() => { load() })
 </script>
 
-<header class="rise mb-6 flex items-end justify-between">
-  <div>
-    <h1 class="text-[22px] font-semibold tracking-[-0.01em] text-ink">Pipeline</h1>
-    <p class="mt-0.5 text-[13px] text-muted">Drag projects across stages to update status.</p>
-  </div>
+<div class="rise mb-5 flex items-center justify-between">
+  <p class="font-mono text-[12px] text-faint"><span class="text-accent-dim">//</span> drag cards across stages to update status</p>
   <button
     onclick={openNew}
-    class="inline-flex h-8 items-center gap-1.5 rounded-md bg-accent px-3 text-[13px] font-medium text-on-accent transition hover:brightness-110"
+    class="inline-flex h-8 items-center gap-1.5 rounded-sm bg-accent px-3 font-mono text-[13px] font-bold text-on-accent transition glow-soft hover:brightness-110"
   >
-    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-    New lead
+    <span class="text-[15px] leading-none">+</span> New lead
   </button>
-</header>
+</div>
 
-{#if error}<p class="rise mb-4 rounded-md border border-st-lost/30 bg-st-lost/10 px-3 py-2 font-mono text-[12px] text-st-lost">{error}</p>{/if}
+{#if error}<p class="rise mb-4 rounded-sm border border-st-lost/30 bg-st-lost/10 px-3 py-2 font-mono text-[12px] text-st-lost">[ ERR ] {error}</p>{/if}
 
 <div class="rise flex gap-3 overflow-x-auto pb-3" style="animation-delay:40ms">
   {#each STATUSES as s}
-    <div class="flex w-56 shrink-0 flex-col">
-      <div class="mb-2.5 flex items-center gap-2 px-0.5">
-        <span class="inline-flex items-center rounded border px-1.5 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide {STATUS_STYLE[s].badge}">{STATUS_LABELS[s]}</span>
-        <span class="font-mono text-[12px] text-faint">{cols[s].length}</span>
+    <div class="flex w-52 shrink-0 flex-col">
+      <div class="mb-2.5 flex items-center justify-between px-0.5">
+        <span class="font-mono text-[11px] font-bold uppercase tracking-wider {STATUS_STYLE[s].text}">[ {STATUS_LABELS[s]} ]</span>
+        <span class="font-mono text-[12px] tabular-nums text-faint">[{cols[s].length}]</span>
       </div>
       <div
-        class="flex min-h-[80px] flex-1 flex-col gap-2 rounded-lg bg-surface/40 p-1.5"
+        class="flex min-h-[88px] flex-1 flex-col gap-2 rounded-sm border border-border/60 bg-bg-2/50 p-1.5"
         use:dndzone={{ items: cols[s], flipDurationMs: 150, dropTargetStyle: {} }}
         onconsider={dndHandlers(s).consider}
         onfinalize={dndHandlers(s).finalize}
@@ -116,14 +112,14 @@
         {#each cols[s] as p (p.id)}
           <button
             onclick={() => openEdit(p)}
-            class="group relative w-full overflow-hidden rounded-md border border-border bg-surface text-left shadow-[0_1px_2px_rgba(0,0,0,0.4)] transition-all duration-100 hover:-translate-y-px hover:border-border-strong"
+            class="group relative w-full overflow-hidden rounded-sm border border-border bg-surface text-left transition-all duration-100 hover:-translate-y-px hover:border-accent-dim hover:shadow-[0_0_14px_rgba(62,245,196,0.12)]"
           >
-            <span class="absolute inset-y-0 left-0 w-0.5 {STATUS_STYLE[s].edge}"></span>
-            <div class="py-2.5 pl-3 pr-2.5">
-              <div class="text-[13px] font-medium leading-snug text-ink">{p.title}</div>
+            <span class="absolute inset-y-0 left-0 w-[3px] {STATUS_STYLE[s].bar}"></span>
+            <div class="py-2.5 pl-3.5 pr-2.5">
+              <div class="font-mono text-[13px] font-medium leading-snug text-ink">{p.title}</div>
               <div class="mt-1 truncate font-mono text-[11px] text-faint">{contactsById[p.contact_id] ?? '—'}</div>
               {#if p.invoice_url}
-                <div class="mt-1.5 inline-flex items-center gap-1 font-mono text-[11px] text-accent">invoice ↗</div>
+                <div class="mt-1.5 inline-flex items-center gap-1 font-mono text-[11px] text-accent glow-text">&gt; invoice</div>
               {/if}
             </div>
           </button>
@@ -146,7 +142,7 @@
         <p class="label mb-1.5">Title</p>
         <input bind:value={creating.title} placeholder="Project title" required class={FIELD} />
       </div>
-      <button class="mt-1 h-9 w-full rounded-md bg-accent text-[13px] font-medium text-on-accent transition hover:brightness-110">Create lead</button>
+      <button class="mt-1 h-9 w-full rounded-sm bg-accent font-mono text-[13px] font-bold text-on-accent transition glow-soft hover:brightness-110">Create lead</button>
     </form>
   </Modal>
 {/if}
@@ -172,13 +168,13 @@
         <p class="label mb-1.5">Invoice URL</p>
         <input bind:value={editing.invoice_url} placeholder="Indy invoice URL" class={FIELD} />
       </div>
-      <p class="flex items-center gap-1.5 font-mono text-[11px] text-faint">
-        <span class="inline-flex items-center rounded border px-1.5 py-0.5 uppercase {STATUS_STYLE[editing.status].badge}">{STATUS_LABELS[editing.status]}</span>
+      <p class="flex items-center gap-2 font-mono text-[11px] text-faint">
+        <span class="font-bold uppercase tracking-wider {STATUS_STYLE[editing.status].text}">[ {STATUS_LABELS[editing.status]} ]</span>
         change by dragging on the board
       </p>
       <div class="mt-1 flex gap-2">
-        <button class="h-9 flex-1 rounded-md bg-accent text-[13px] font-medium text-on-accent transition hover:brightness-110">Save</button>
-        <button type="button" onclick={() => removeProject(editing)} class="h-9 rounded-md border border-st-lost/40 px-3 text-[13px] font-medium text-st-lost transition hover:bg-st-lost/10">Delete</button>
+        <button class="h-9 flex-1 rounded-sm bg-accent font-mono text-[13px] font-bold text-on-accent transition glow-soft hover:brightness-110">Save</button>
+        <button type="button" onclick={() => removeProject(editing)} class="h-9 rounded-sm border border-st-lost/40 px-3 font-mono text-[13px] font-medium text-st-lost transition hover:bg-st-lost/10">Delete</button>
       </div>
     </form>
   </Modal>

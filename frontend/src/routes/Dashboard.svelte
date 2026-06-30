@@ -48,63 +48,61 @@
   $effect(() => { load() })
 </script>
 
-<header class="rise mb-6 flex items-end justify-between">
-  <div>
-    <h1 class="text-[22px] font-semibold tracking-[-0.01em] text-ink">Dashboard</h1>
-    <p class="mt-0.5 text-[13px] text-muted">Pipeline health and what's due.</p>
-  </div>
-</header>
+{#if error}<p class="rise mb-4 rounded-sm border border-st-lost/30 bg-st-lost/10 px-3 py-2 font-mono text-[12px] text-st-lost">[ ERR ] {error}</p>{/if}
 
-{#if error}<p class="rise mb-4 rounded-md border border-st-lost/30 bg-st-lost/10 px-3 py-2 font-mono text-[12px] text-st-lost">{error}</p>{/if}
-
-<div class="rise mb-6 grid grid-cols-3 gap-3" style="animation-delay:40ms">
+<div class="rise mb-5 grid grid-cols-3 gap-3">
   {#each tiles as t}
-    <div class="rounded-lg border border-border bg-surface p-4 shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
+    <div class="group relative rounded-sm border border-border bg-surface p-4 transition-colors duration-100 hover:border-border-strong">
+      <!-- corner ticks -->
+      <span class="pointer-events-none absolute right-1.5 top-1.5 h-2 w-2 border-r border-t {t.accent ? 'border-accent' : 'border-border-strong'}"></span>
+      <span class="pointer-events-none absolute bottom-1.5 left-1.5 h-2 w-2 border-b border-l {t.accent ? 'border-accent' : 'border-border-strong'}"></span>
       <div
-        class="font-mono text-[28px] font-medium leading-none"
+        class="font-mono text-[32px] font-bold leading-none tabular-nums"
         class:text-accent={t.accent}
+        class:glow-text={t.accent}
         class:text-ink={!t.accent}
       >{t.value}</div>
-      <!-- Visible label is CSS-uppercased; innerText reflects that transform, so a
-           natural-case sr-only twin keeps the text matchable (e2e) and SR-friendly. -->
-      <div class="label mt-2.5" aria-hidden="true">{t.label}</div>
+      <!-- Visible caption is lowercased prompt-style; the natural-case sr-only twin
+           keeps the text matchable (e2e innerText) and SR-friendly. -->
+      <div class="mt-3 font-mono text-[11px] lowercase tracking-wide text-faint" aria-hidden="true"><span class="text-accent-dim">&gt;</span> {t.label}</div>
       <span class="sr-only">{t.label}</span>
     </div>
   {/each}
 </div>
 
-<div class="rise grid grid-cols-2 gap-4" style="animation-delay:80ms">
-  <section class="rounded-lg border border-border bg-surface shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
-    <div class="flex items-center justify-between border-b border-border px-4 py-3">
-      <h2 class="label">Active projects</h2>
-      <span class="font-mono text-[12px] text-faint">{activeProjects.length}</span>
+<div class="rise grid grid-cols-2 gap-4" style="animation-delay:60ms">
+  <section class="rounded-sm border border-border bg-surface">
+    <div class="flex items-center justify-between border-b border-border px-4 py-2.5">
+      <h2 class="font-mono text-[12px] font-medium text-muted"><span class="text-accent glow-text">&gt;</span> active_projects</h2>
+      <span class="font-mono text-[12px] tabular-nums text-faint">[{activeProjects.length}]</span>
     </div>
     <ul>
       {#each activeProjects as p}
         <li class="flex items-center gap-3 border-b border-border px-4 py-2.5 last:border-0">
-          <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-st-active"></span>
-          <span class="truncate text-[13px] font-medium text-ink">{p.title}</span>
+          <span class="h-1.5 w-1.5 shrink-0 bg-st-active glow-soft"></span>
+          <span class="truncate font-mono text-[13px] text-ink">{p.title}</span>
           <span class="ml-auto truncate font-mono text-[12px] text-faint">{contactsById[p.contact_id] ?? '—'}</span>
         </li>
       {:else}
-        <li class="px-4 py-6 text-center text-[13px] text-faint">No active projects.</li>
+        <li class="px-4 py-6 text-center font-mono text-[13px] text-faint">// no active projects</li>
       {/each}
     </ul>
   </section>
 
-  <section class="rounded-lg border border-border bg-surface shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
-    <div class="flex items-center justify-between border-b border-border px-4 py-3">
-      <h2 class="label">Tasks due</h2>
-      <span class="font-mono text-[12px] text-faint">{dueTasks.length}</span>
+  <section class="rounded-sm border border-border bg-surface">
+    <div class="flex items-center justify-between border-b border-border px-4 py-2.5">
+      <h2 class="font-mono text-[12px] font-medium text-muted"><span class="text-accent glow-text">&gt;</span> tasks_due</h2>
+      <span class="font-mono text-[12px] tabular-nums text-faint">[{dueTasks.length}]</span>
     </div>
     <div class="px-4 pt-3">
-      <form onsubmit={(e) => { e.preventDefault(); addTask() }} class="flex gap-2">
+      <form onsubmit={(e) => { e.preventDefault(); addTask() }} class="flex items-center gap-2 rounded-sm border border-border bg-surface-2 px-2.5 transition-colors duration-100 focus-within:border-accent focus-within:shadow-[0_0_0_3px_rgba(62,245,196,0.14)]">
+        <span class="select-none font-mono text-[13px] text-accent-dim">$</span>
         <input
           bind:value={newTask}
-          placeholder="Quick add task…"
-          class="h-8 flex-1 rounded-md border border-border bg-surface-2 px-2.5 text-[13px] text-ink placeholder:text-faint focus:border-accent focus:shadow-[0_0_0_3px_rgba(69,214,196,0.12)] focus:outline-none"
+          placeholder="add task…"
+          class="h-8 flex-1 bg-transparent font-mono text-[13px] text-ink placeholder:text-faint focus:outline-none"
         />
-        <button class="h-8 shrink-0 rounded-md bg-accent px-3 text-[13px] font-medium text-on-accent transition hover:brightness-110">Add</button>
+        <button class="shrink-0 rounded-sm bg-accent px-2.5 py-1 font-mono text-[12px] font-bold text-on-accent transition hover:brightness-110">add</button>
       </form>
     </div>
     <ul class="px-4 py-2">
@@ -115,13 +113,13 @@
             checked={t.status === 'done'}
             onchange={() => toggleDone(t)}
             aria-label="Mark {t.title} done"
-            class="h-3.5 w-3.5 shrink-0 rounded accent-accent"
+            class="h-3.5 w-3.5 shrink-0 rounded-sm accent-accent"
           />
-          <span class="truncate text-[13px] text-ink" class:line-through={t.status === 'done'} class:text-faint={t.status === 'done'}>{t.title}</span>
-          {#if t.due_on}<span class="ml-auto shrink-0 font-mono text-[11px] text-faint">{t.due_on}</span>{/if}
+          <span class="truncate font-mono text-[13px] text-ink" class:line-through={t.status === 'done'} class:text-faint={t.status === 'done'}>{t.title}</span>
+          {#if t.due_on}<span class="ml-auto shrink-0 font-mono text-[11px] tabular-nums text-faint">{t.due_on}</span>{/if}
         </li>
       {:else}
-        <li class="py-6 text-center text-[13px] text-faint">Nothing due.</li>
+        <li class="py-6 text-center font-mono text-[13px] text-faint">// nothing due</li>
       {/each}
     </ul>
   </section>
