@@ -32,6 +32,14 @@ pub struct Project {
     pub invoice_url: Option<String>,
     #[sqlx(default)]
     pub task_count: i64,
+    #[sqlx(default)]
+    pub done_count: i64,
+    #[sqlx(default)]
+    pub open_count: i64,
+    #[sqlx(default)]
+    pub overdue_count: i64,
+    #[sqlx(default)]
+    pub next_due: Option<NaiveDate>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -44,6 +52,12 @@ pub struct ProjectInput {
     pub invoice_url: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChecklistItem {
+    pub title: String,
+    pub done: bool,
+}
+
 #[derive(Debug, Serialize, sqlx::FromRow)]
 pub struct Task {
     pub id: Uuid,
@@ -51,6 +65,14 @@ pub struct Task {
     pub title: String,
     pub status: String,
     pub due_on: Option<NaiveDate>,
+    pub priority: Option<String>,
+    pub size: Option<String>,
+    pub description: Option<String>,
+    #[sqlx(json)]
+    pub checklist: Vec<ChecklistItem>,
+    pub position: i32,
+    #[sqlx(default)]
+    pub project_title: Option<String>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -60,11 +82,19 @@ pub struct TaskInput {
     pub title: String,
     pub status: Option<String>,
     pub due_on: Option<NaiveDate>,
+    pub priority: Option<String>,
+    pub size: Option<String>,
+    pub description: Option<String>,
+    #[serde(default)]
+    pub checklist: Vec<ChecklistItem>,
+    pub position: Option<i32>,
 }
 
 pub const CONTACT_KINDS: [&str; 2] = ["person", "company"];
 pub const PROJECT_STATUSES: [&str; 2] = ["active", "archived"];
 pub const TASK_STATUSES: [&str; 3] = ["todo", "doing", "done"];
+pub const PRIORITY_LEVELS: [&str; 3] = ["low", "medium", "high"];
+pub const TASK_SIZES: [&str; 5] = ["xs", "s", "m", "l", "xl"];
 
 #[derive(Debug, Serialize, sqlx::FromRow)]
 pub struct Event {
