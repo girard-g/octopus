@@ -96,6 +96,11 @@ pub struct EventInput {
     pub notes: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct SeriesInput {
+    pub occurrences: Vec<EventInput>,
+}
+
 #[derive(Debug, Serialize, sqlx::FromRow)]
 pub struct Note {
     pub id: Uuid,

@@ -229,3 +229,58 @@ async fn created_event_exposes_null_series_id(pool: sqlx::PgPool) {
     assert!(e.as_object().unwrap().contains_key("series_id"));
     assert!(e["series_id"].is_null());
 }
+
+#[sqlx::test]
+async fn create_series_inserts_rows_with_shared_series_id(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+    let body = json!({
+        "occurrences": [
+            {"title":"Standup","starts_at":"2026-07-06T10:00:00Z","ends_at":"2026-07-06T10:15:00Z"},
+            {"title":"Standup","starts_at":"2026-07-13T10:00:00Z","ends_at":"2026-07-13T10:15:00Z"},
+            {"title":"Standup","starts_at":"2026-07-20T10:00:00Z","ends_at":"2026-07-20T10:15:00Z"}
+        ]
+    });
+    let (status, rows) = send(&app, json_req("POST", "/api/events/series", body).with_cookie(&cookie)).await;
+    assert_eq!(status, StatusCode::CREATED);
+    let arr = rows.as_array().unwrap();
+    assert_eq!(arr.len(), 3);
+    let sid = arr[0]["series_id"].as_str().unwrap().to_string();
+    assert!(!sid.is_empty());
+    assert!(arr.iter().all(|r| r["series_id"] == json!(sid)));
+
+    // all three visible via list
+    let (_, list) = send(&app, json_req("GET", "/api/events", json!(null)).with_cookie(&cookie)).await;
+    assert_eq!(list.as_array().unwrap().len(), 3);
+}
+
+#[sqlx::test]
+async fn create_series_rejects_empty(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+    let (status, _) = send(
+        &app,
+        json_req("POST", "/api/events/series", json!({"occurrences": []})).with_cookie(&cookie),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+}
+
+#[sqlx::test]
+async fn create_series_rejects_oversize(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+    let mut occ = Vec::new();
+    for _ in 0..367 {
+        occ.push(json!({"title":"x","starts_at":"2026-07-06T10:00:00Z","ends_at":"2026-07-06T10:15:00Z"}));
+    }
+    let (status, _) = send(
+        &app,
+        json_req("POST", "/api/events/series", json!({"occurrences": occ})).with_cookie(&cookie),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+}

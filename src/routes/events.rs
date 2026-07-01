@@ -8,7 +8,7 @@ use uuid::Uuid;
 use crate::app::AppState;
 use crate::auth::AuthUser;
 use crate::error::AppError;
-use crate::models::{Event, EventInput};
+use crate::models::{Event, EventInput, SeriesInput};
 
 #[derive(Deserialize)]
 pub struct ListQuery {
@@ -133,4 +133,55 @@ pub async fn delete(
         return Err(AppError::NotFound);
     }
     Ok(StatusCode::NO_CONTENT)
+}
+
+pub async fn create_series(
+    _: AuthUser,
+    State(s): State<AppState>,
+    Json(input): Json<SeriesInput>,
+) -> Result<(StatusCode, Json<Vec<Event>>), AppError> {
+    if input.occurrences.is_empty() {
+        return Err(AppError::BadRequest("occurrences must not be empty".into()));
+    }
+    if input.occurrences.len() > 366 {
+        return Err(AppError::BadRequest("too many occurrences (max 366)".into()));
+    }
+    for occ in &input.occurrences {
+        if occ.title.trim().is_empty() {
+            return Err(AppError::BadRequest("title is required".into()));
+        }
+        if occ.ends_at < occ.starts_at {
+            return Err(AppError::BadRequest("ends_at must be >= starts_at".into()));
+        }
+    }
+
+    let series_id = Uuid::new_v4();
+    let mut tx = s.pool.begin().await?;
+    let mut rows = Vec::with_capacity(input.occurrences.len());
+    for occ in &input.occurrences {
+        let all_day = occ.all_day.unwrap_or(false);
+        let row = sqlx::query_as::<_, Event>(
+            "insert into event (title, starts_at, ends_at, all_day, project_id, contact_id, notes, series_id) \
+             values ($1,$2,$3,$4,$5,$6,$7,$8) returning *",
+        )
+        .bind(&occ.title)
+        .bind(occ.starts_at)
+        .bind(occ.ends_at)
+        .bind(all_day)
+        .bind(occ.project_id)
+        .bind(occ.contact_id)
+        .bind(&occ.notes)
+        .bind(series_id)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(|e| match e {
+            sqlx::Error::Database(ref db) if db.is_foreign_key_violation() => {
+                AppError::BadRequest("project_id or contact_id does not exist".into())
+            }
+            other => AppError::Db(other),
+        })?;
+        rows.push(row);
+    }
+    tx.commit().await?;
+    Ok((StatusCode::CREATED, Json(rows)))
 }
