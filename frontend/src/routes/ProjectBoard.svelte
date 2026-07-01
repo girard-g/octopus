@@ -13,6 +13,13 @@
   }
   // Card left-bar encodes PRIORITY (the column already conveys status).
   const PRIORITY_BAR = { high: 'bg-st-lost', medium: 'bg-st-proposal', low: 'bg-st-done' }
+  const TYPE_BADGE = {
+    feature:     'text-st-done',
+    bug:         'text-st-lost',
+    enhancement: 'text-accent',
+    chore:       'text-faint',
+    docs:        'text-st-proposal',
+  }
   const PROJECT_STATUS_TEXT = { active: 'text-st-active', archived: 'text-muted' }
   const FIELD = 'w-full rounded-sm border border-border bg-surface-2 px-2.5 py-2 font-mono text-[13px] text-ink placeholder:text-faint focus:border-accent focus:shadow-[0_0_0_3px_rgba(62,245,196,0.14)] focus:outline-none'
   const ADDFIELD = 'w-full rounded-sm border border-border bg-surface-2 px-2.5 py-1.5 font-mono text-[13px] text-ink placeholder:text-faint focus:border-accent focus:shadow-[0_0_0_3px_rgba(62,245,196,0.14)] focus:outline-none'
@@ -118,6 +125,8 @@
         priority: t.priority || null,
         size: t.size || null,
         description: t.description || null,
+        version: t.version || null,
+        type: t.type || null,
         checklist: t.checklist,
         position: t.position ?? 0,
       })
@@ -261,8 +270,10 @@
                   class="min-w-0 flex-1 text-left"
                 >
                   <div class="break-words font-mono text-[13px] font-medium leading-snug text-ink">{t.title}</div>
-                  {#if t.due_on || t.size || t.checklist?.length}
+                  {#if t.due_on || t.size || t.checklist?.length || t.type || t.version}
                     <div class="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 font-mono text-[11px]">
+                      {#if t.type}<span class="uppercase {TYPE_BADGE[t.type] ?? 'text-faint'}">{t.type}</span>{/if}
+                      {#if t.version}<span class="text-faint">{t.version}</span>{/if}
                       {#if t.due_on}<span class={isOverdue(t) ? 'text-st-lost' : 'text-faint'}>{t.due_on}</span>{/if}
                       {#if t.size}<span class="uppercase text-faint">[{t.size}]</span>{/if}
                       {#if t.checklist?.length}<span class="text-faint">✓ {t.checklist.filter((c) => c.done).length}/{t.checklist.length}</span>{/if}
@@ -399,6 +410,23 @@
             <option value="m">M</option>
             <option value="l">L</option>
             <option value="xl">XL</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <p class="label mb-1.5">Version</p>
+          <input bind:value={editingTask.version} placeholder="v1.0" class={FIELD} />
+        </div>
+        <div>
+          <p class="label mb-1.5">Type</p>
+          <select bind:value={editingTask.type} class={FIELD}>
+            <option value={null}>— none —</option>
+            <option value="feature">feature</option>
+            <option value="bug">bug</option>
+            <option value="enhancement">enhancement</option>
+            <option value="chore">chore</option>
+            <option value="docs">docs</option>
           </select>
         </div>
       </div>
