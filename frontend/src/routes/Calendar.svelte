@@ -65,7 +65,7 @@
       starts_date: iso,
       ends_date: iso,
       project_id: '',
-      contact_id: '',
+      contact_ids: [],
       notes: '',
       repeat: 'none',
       until: '',
@@ -96,7 +96,7 @@
         starts_date: toDate(ev.starts_at),
         ends_date: toDate(ev.ends_at),
         project_id: ev.project_id ?? '',
-        contact_id: ev.contact_id ?? '',
+        contact_ids: ev.contact_ids ?? [],
         notes: ev.notes ?? '',
         series_id: ev.series_id ?? null,
         orig_starts_at: ev.starts_at,
@@ -120,7 +120,7 @@
       ends_at,
       all_day: ev.all_day,
       project_id: ev.project_id || null,
-      contact_id: ev.contact_id || null,
+      contact_ids: ev.contact_ids ?? [],
       notes: ev.notes || null,
     }
   }
@@ -148,9 +148,9 @@
           const gen = generateOccurrences({ start, end, freq: ev.repeat, until })
           if (gen.length === 0) { modalError = 'No occurrences in that range'; return }
           if (gen.length > 366) { modalError = 'Too many occurrences (max 366)'; return }
-          const { title, all_day, project_id, contact_id, notes } = body
+          const { title, all_day, project_id, contact_ids, notes } = body
           const occurrences = gen.map((o) => ({
-            title, all_day, project_id, contact_id, notes,
+            title, all_day, project_id, contact_ids, notes,
             starts_at: o.starts_at, ends_at: o.ends_at,
           }))
           await api.post('/api/events/series', { occurrences })
@@ -166,7 +166,7 @@
             title: body.title,
             notes: body.notes,
             project_id: body.project_id,
-            contact_id: body.contact_id,
+            contact_ids: ev.contact_ids ?? [],
             all_day: body.all_day,
             shift_seconds,
           })
@@ -193,6 +193,12 @@
 
   function handleDayKey(e, iso) {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openNew(iso) }
+  }
+
+  const contactName = (id) => contacts.find((c) => c.id === id)?.name ?? '?'
+  function toggleContact(id) {
+    const set = modal.ev.contact_ids
+    modal.ev.contact_ids = set.includes(id) ? set.filter((x) => x !== id) : [...set, id]
   }
 </script>
 
@@ -258,7 +264,7 @@
               <button
                 onclick={(e) => openEdit(ev, e)}
                 class="mb-0.5 w-full truncate rounded-sm bg-accent-dim/20 px-1.5 py-0.5 text-left font-mono text-[11px] text-accent transition hover:bg-accent-dim/40"
-                title="{ev.title}{ev.all_day ? '' : ' ' + fmtTime(ev.starts_at)}"
+                title="{ev.title}{ev.all_day ? '' : ' ' + fmtTime(ev.starts_at)}{ev.contact_ids?.length ? ' — ' + ev.contact_ids.map(contactName).join(', ') : ''}"
               >
                 {#if !ev.all_day}<span class="text-faint">{fmtTime(ev.starts_at)} </span>{/if}{ev.title}
               </button>
@@ -342,11 +348,18 @@
         </select>
       </div>
       <div>
-        <p class="label mb-1.5">Contact <span class="text-faint">(optional)</span></p>
-        <select bind:value={modal.ev.contact_id} class={FIELD}>
-          <option value="">— none —</option>
-          {#each contacts as c}<option value={c.id}>{c.name}</option>{/each}
-        </select>
+        <p class="label mb-1.5">People <span class="text-faint">(optional)</span></p>
+        <div class="flex flex-wrap gap-1.5">
+          {#each contacts as c}
+            {@const on = modal.ev.contact_ids.includes(c.id)}
+            <button
+              type="button"
+              onclick={() => toggleContact(c.id)}
+              class="rounded-sm border px-2 py-1 font-mono text-[12px] transition {on ? 'border-accent bg-accent-dim/25 text-accent' : 'border-border bg-surface-2 text-muted hover:border-accent-dim'}"
+            >{on ? '✓ ' : ''}{c.name}</button>
+          {/each}
+          {#if contacts.length === 0}<span class="font-mono text-[12px] text-faint">// no contacts</span>{/if}
+        </div>
       </div>
       <div>
         <p class="label mb-1.5">Notes <span class="text-faint">(optional)</span></p>
