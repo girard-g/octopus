@@ -79,10 +79,11 @@ pub struct Event {
     pub ends_at: DateTime<Utc>,
     pub all_day: bool,
     pub project_id: Option<Uuid>,
-    pub contact_id: Option<Uuid>,
     pub notes: Option<String>,
     pub created_at: DateTime<Utc>,
     pub series_id: Option<Uuid>,
+    #[sqlx(default)]
+    pub contact_ids: Vec<Uuid>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -92,8 +93,9 @@ pub struct EventInput {
     pub ends_at: DateTime<Utc>,
     pub all_day: Option<bool>,
     pub project_id: Option<Uuid>,
-    pub contact_id: Option<Uuid>,
     pub notes: Option<String>,
+    #[serde(default)]
+    pub contact_ids: Vec<Uuid>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -106,9 +108,10 @@ pub struct SeriesUpdateInput {
     pub title: String,
     pub notes: Option<String>,
     pub project_id: Option<Uuid>,
-    pub contact_id: Option<Uuid>,
     pub all_day: Option<bool>,
     pub shift_seconds: i64,
+    #[serde(default)]
+    pub contact_ids: Vec<Uuid>,
 }
 
 #[derive(Debug, Serialize, sqlx::FromRow)]

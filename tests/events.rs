@@ -123,7 +123,7 @@ async fn event_update_bad_contact_id_is_400(pool: sqlx::PgPool) {
         json_req(
             "PUT",
             &format!("/api/events/{id}"),
-            json!({"title":"X","starts_at":"2026-07-01T10:00:00Z","ends_at":"2026-07-01T11:00:00Z","contact_id":bogus}),
+            json!({"title":"X","starts_at":"2026-07-01T10:00:00Z","ends_at":"2026-07-01T11:00:00Z","contact_ids":[bogus]}),
         )
         .with_cookie(&cookie),
     )
@@ -430,4 +430,110 @@ async fn following_split_survives_later_entire_series_edit(pool: sqlx::PgPool) {
     assert_eq!(jul20["title"], "Tail");
     assert_eq!(jul20["series_id"].as_str().unwrap(), new_sid);
     assert!(jul20["starts_at"].as_str().unwrap().contains("11:00:00"));
+}
+
+async fn make_contact(app: &axum::Router, cookie: &str, name: &str) -> String {
+    let (status, c) = send(app, json_req("POST", "/api/contacts", json!({"kind":"person","name":name})).with_cookie(cookie)).await;
+    assert_eq!(status, StatusCode::CREATED);
+    c["id"].as_str().unwrap().to_string()
+}
+
+#[sqlx::test]
+async fn create_event_with_multiple_contacts(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+    let a = make_contact(&app, &cookie, "Alice").await;
+    let b = make_contact(&app, &cookie, "Bob").await;
+    let (status, e) = send(&app, json_req("POST", "/api/events",
+        json!({"title":"Sync","starts_at":"2026-07-01T10:00:00Z","ends_at":"2026-07-01T11:00:00Z","contact_ids":[a,b]})).with_cookie(&cookie)).await;
+    assert_eq!(status, StatusCode::CREATED);
+    let ids: Vec<String> = e["contact_ids"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
+    assert_eq!(ids.len(), 2);
+    assert!(ids.contains(&a) && ids.contains(&b));
+
+    // list aggregates them back
+    let (_, list) = send(&app, json_req("GET", "/api/events", json!(null)).with_cookie(&cookie)).await;
+    let got = &list.as_array().unwrap()[0]["contact_ids"];
+    assert_eq!(got.as_array().unwrap().len(), 2);
+}
+
+#[sqlx::test]
+async fn event_with_no_contacts_returns_empty_array(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+    let (_, e) = send(&app, json_req("POST", "/api/events",
+        json!({"title":"Solo","starts_at":"2026-07-01T10:00:00Z","ends_at":"2026-07-01T11:00:00Z"})).with_cookie(&cookie)).await;
+    assert_eq!(e["contact_ids"].as_array().unwrap().len(), 0);
+}
+
+#[sqlx::test]
+async fn update_replaces_contact_set(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+    let a = make_contact(&app, &cookie, "Alice").await;
+    let b = make_contact(&app, &cookie, "Bob").await;
+    let c = make_contact(&app, &cookie, "Carol").await;
+    let (_, e) = send(&app, json_req("POST", "/api/events",
+        json!({"title":"E","starts_at":"2026-07-01T10:00:00Z","ends_at":"2026-07-01T11:00:00Z","contact_ids":[a]})).with_cookie(&cookie)).await;
+    let id = e["id"].as_str().unwrap().to_string();
+    let (status, upd) = send(&app, json_req("PUT", &format!("/api/events/{id}"),
+        json!({"title":"E","starts_at":"2026-07-01T10:00:00Z","ends_at":"2026-07-01T11:00:00Z","contact_ids":[b,c]})).with_cookie(&cookie)).await;
+    assert_eq!(status, StatusCode::OK);
+    let ids: Vec<String> = upd["contact_ids"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
+    assert_eq!(ids.len(), 2);
+    assert!(ids.contains(&b) && ids.contains(&c) && !ids.contains(&a));
+}
+
+#[sqlx::test]
+async fn series_writes_contacts_on_every_occurrence(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+    let a = make_contact(&app, &cookie, "Alice").await;
+    let body = json!({"occurrences":[
+        {"title":"W","starts_at":"2026-07-06T10:00:00Z","ends_at":"2026-07-06T10:15:00Z","contact_ids":[a]},
+        {"title":"W","starts_at":"2026-07-13T10:00:00Z","ends_at":"2026-07-13T10:15:00Z","contact_ids":[a]}
+    ]});
+    let (status, rows) = send(&app, json_req("POST", "/api/events/series", body).with_cookie(&cookie)).await;
+    assert_eq!(status, StatusCode::CREATED);
+    for r in rows.as_array().unwrap() {
+        assert_eq!(r["contact_ids"].as_array().unwrap().len(), 1);
+    }
+}
+
+#[sqlx::test]
+async fn scoped_series_edit_replaces_contacts_on_affected(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+    let a = make_contact(&app, &cookie, "Alice").await;
+    let b = make_contact(&app, &cookie, "Bob").await;
+    // 2-occurrence weekly series, both with contact a
+    let body = json!({"occurrences":[
+        {"title":"W","starts_at":"2026-07-06T10:00:00Z","ends_at":"2026-07-06T10:15:00Z","contact_ids":[a]},
+        {"title":"W","starts_at":"2026-07-13T10:00:00Z","ends_at":"2026-07-13T10:15:00Z","contact_ids":[a]}
+    ]});
+    let (_, rows) = send(&app, json_req("POST", "/api/events/series", body).with_cookie(&cookie)).await;
+    let ids: Vec<String> = rows.as_array().unwrap().iter().map(|r| r["id"].as_str().unwrap().to_string()).collect();
+    // entire-series edit sets contacts to [b]
+    let (status, updated) = send(&app, json_req("PATCH", &format!("/api/events/{}/series?scope=series", ids[0]),
+        json!({"title":"W","notes":null,"project_id":null,"contact_ids":[b],"all_day":false,"shift_seconds":0})).with_cookie(&cookie)).await;
+    assert_eq!(status, StatusCode::OK);
+    for r in updated.as_array().unwrap() {
+        let cs: Vec<String> = r["contact_ids"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
+        assert_eq!(cs, vec![b.clone()]);
+    }
+}
+
+#[sqlx::test]
+async fn create_event_bad_contact_id_is_400(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+    let (status, _) = send(&app, json_req("POST", "/api/events",
+        json!({"title":"E","starts_at":"2026-07-01T10:00:00Z","ends_at":"2026-07-01T11:00:00Z","contact_ids":["00000000-0000-0000-0000-000000000000"]})).with_cookie(&cookie)).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
 }
