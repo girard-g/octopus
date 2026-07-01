@@ -1,7 +1,7 @@
 <script>
   import { api } from '../lib/api.js'
   import Modal from '../lib/components/Modal.svelte'
-  import { monthMatrix, monthRange, eventsByDay, fmtTime, toISODate } from '../lib/calendar.js'
+  import { monthMatrix, monthRange, eventsByDay, fmtTime, toISODate, generateOccurrences } from '../lib/calendar.js'
 
   const FIELD = 'w-full rounded-sm border border-border bg-surface-2 px-2.5 py-2 font-mono text-[13px] text-ink placeholder:text-faint focus:border-accent focus:shadow-[0_0_0_3px_rgba(62,245,196,0.14)] focus:outline-none'
   const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -66,6 +66,8 @@
       project_id: '',
       contact_id: '',
       notes: '',
+      repeat: 'none',
+      until: '',
     }
   }
 
@@ -135,10 +137,29 @@
     }
     modalError = ''
     try {
-      if (modal.mode === 'new') await api.post('/api/events', body)
-      else await api.put(`/api/events/${ev.id}`, body)
+      if (modal.mode === 'new') {
+        if (ev.repeat && ev.repeat !== 'none') {
+          if (!ev.until) { modalError = 'End date is required for repeats'; return }
+          const start = new Date(body.starts_at)
+          const end = new Date(body.ends_at)
+          const until = new Date(`${ev.until}T00:00:00`)
+          if (until < start) { modalError = 'End date must be on or after the start'; return }
+          const gen = generateOccurrences({ start, end, freq: ev.repeat, until })
+          if (gen.length === 0) { modalError = 'No occurrences in that range'; return }
+          if (gen.length > 366) { modalError = 'Too many occurrences (max 366)'; return }
+          const { title, all_day, project_id, contact_id, notes } = body
+          const occurrences = gen.map((o) => ({
+            title, all_day, project_id, contact_id, notes,
+            starts_at: o.starts_at, ends_at: o.ends_at,
+          }))
+          await api.post('/api/events/series', { occurrences })
+        } else {
+          await api.post('/api/events', body)
+        }
+      } else {
+        await api.put(`/api/events/${ev.id}`, body)
+      }
       modal = null
-      // refetch
       const { from, to } = monthRange(year, monthIndex)
       events = await api.get(`/api/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`)
     } catch (err) { modalError = err.message }
@@ -271,6 +292,25 @@
             <p class="label mb-1.5">End</p>
             <input type="datetime-local" bind:value={modal.ev.ends_at_local} required class={FIELD} />
           </div>
+        </div>
+      {/if}
+      {#if modal.mode === 'new'}
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <p class="label mb-1.5">Repeat</p>
+            <select bind:value={modal.ev.repeat} class={FIELD}>
+              <option value="none">Does not repeat</option>
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+            </select>
+          </div>
+          {#if modal.ev.repeat !== 'none'}
+            <div>
+              <p class="label mb-1.5">Ends</p>
+              <input type="date" bind:value={modal.ev.until} required class={FIELD} />
+            </div>
+          {/if}
         </div>
       {/if}
       <div>
