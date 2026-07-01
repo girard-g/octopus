@@ -8,7 +8,7 @@ export default defineConfig({
   build: { outDir: '../static', emptyOutDir: true },
   server: {
     port: 5173,
-    proxy: { '/api': 'http://localhost:8080' }, // Rust API in local dev
+    proxy: { '/api': 'http://localhost:8090' }, // Rust API in local dev
   },
   test: { environment: 'jsdom' },
 })

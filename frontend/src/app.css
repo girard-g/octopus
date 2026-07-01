@@ -10,14 +10,14 @@
 @theme {
   --color-bg:            #06070a;   /* near-black canvas */
   --color-bg-2:          #0a0c11;
-  --color-surface:       #0d1016;   /* panels / cards */
-  --color-surface-2:     #12161d;   /* hover / raised / inputs */
-  --color-border:        #1b2129;   /* hairline */
-  --color-border-2:      #283041;
-  --color-border-strong: #283041;   /* alias of border-2 (kept for scrollbar) */
-  --color-ink:           #d7e0d8;   /* slightly green-tinted off-white */
-  --color-muted:         #7e8a83;
-  --color-faint:         #4d564f;
+  --color-surface:       #1a2330;   /* panels / cards */
+  --color-surface-2:     #26313f;   /* hover / raised / inputs */
+  --color-border:        #46586b;   /* hairline — visible separator on the near-black canvas */
+  --color-border-2:      #5a6c82;
+  --color-border-strong: #5a6c82;   /* alias of border-2 (kept for scrollbar) */
+  --color-ink:           #e2eae3;   /* slightly green-tinted off-white */
+  --color-muted:         #93a09a;
+  --color-faint:         #68746c;
   --color-accent:        #3ef5c4;   /* neon mint — the ONE accent */
   --color-accent-dim:    #1c8f76;
   --color-on-accent:     #04130e;
@@ -66,7 +66,7 @@
       transparent 1px,
       transparent 3px
     );
-    opacity: 0.35;
+    opacity: 0.18;
     mix-blend-mode: multiply;
   }
 
@@ -140,5 +140,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .rise, .boot > *, .cursor { animation: none; }
-  body::after { opacity: 0.2; }
+  body::after { opacity: 0.12; }
 }
