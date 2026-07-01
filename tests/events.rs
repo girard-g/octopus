@@ -335,3 +335,66 @@ async fn create_series_rejects_oversize(pool: sqlx::PgPool) {
     .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
 }
+
+#[sqlx::test]
+async fn update_series_following_shifts_and_splits(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+    let ids = make_weekly_series(&app, &cookie).await; // Jul 6,13,20,27 @10:00
+
+    // original series_id (from the first occurrence)
+    let (_, first) = send(&app, json_req("GET", &format!("/api/events/{}", ids[0]), json!(null)).with_cookie(&cookie)).await;
+    let orig_sid = first["series_id"].as_str().unwrap().to_string();
+
+    // "this and following" on Jul 20: +1h, rename
+    let (status, updated) = send(
+        &app,
+        json_req(
+            "PATCH",
+            &format!("/api/events/{}/series?scope=following", ids[2]),
+            json!({"title":"Renamed","notes":null,"project_id":null,"contact_id":null,"all_day":false,"shift_seconds":3600}),
+        )
+        .with_cookie(&cookie),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let arr = updated.as_array().unwrap();
+    assert_eq!(arr.len(), 2); // Jul 20 & 27
+    for r in arr {
+        assert_eq!(r["title"], "Renamed");
+        assert_ne!(r["series_id"].as_str().unwrap(), orig_sid); // split → new series_id
+        assert!(r["starts_at"].as_str().unwrap().contains("11:00:00")); // 10:00 + 1h
+    }
+
+    // earlier occurrence untouched
+    let (_, jul6) = send(&app, json_req("GET", &format!("/api/events/{}", ids[0]), json!(null)).with_cookie(&cookie)).await;
+    assert_eq!(jul6["title"], "W");
+    assert_eq!(jul6["series_id"].as_str().unwrap(), orig_sid);
+    assert!(jul6["starts_at"].as_str().unwrap().contains("10:00:00"));
+}
+
+#[sqlx::test]
+async fn update_series_all_shifts_every_row(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+    let ids = make_weekly_series(&app, &cookie).await;
+    let (status, updated) = send(
+        &app,
+        json_req(
+            "PATCH",
+            &format!("/api/events/{}/series?scope=series", ids[0]),
+            json!({"title":"All","notes":null,"project_id":null,"contact_id":null,"all_day":false,"shift_seconds":-3600}),
+        )
+        .with_cookie(&cookie),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let arr = updated.as_array().unwrap();
+    assert_eq!(arr.len(), 4);
+    for r in arr {
+        assert_eq!(r["title"], "All");
+        assert!(r["starts_at"].as_str().unwrap().contains("09:00:00")); // 10:00 - 1h
+    }
+}

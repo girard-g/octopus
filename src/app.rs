@@ -51,6 +51,7 @@ pub fn build_router(state: AppState) -> Router {
             "/api/events/{id}",
             get(events::get).put(events::update).delete(events::delete),
         )
+        .route("/api/events/{id}/series", patch(events::update_series))
         .route("/api/notes", get(notes::list).post(notes::create))
         .route("/api/notes/{id}", axum::routing::put(notes::update).delete(notes::delete))
         .route("/api/dashboard", get(dashboard::get))

@@ -101,6 +101,16 @@ pub struct SeriesInput {
     pub occurrences: Vec<EventInput>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct SeriesUpdateInput {
+    pub title: String,
+    pub notes: Option<String>,
+    pub project_id: Option<Uuid>,
+    pub contact_id: Option<Uuid>,
+    pub all_day: Option<bool>,
+    pub shift_seconds: i64,
+}
+
 #[derive(Debug, Serialize, sqlx::FromRow)]
 pub struct Note {
     pub id: Uuid,

@@ -8,7 +8,7 @@ use uuid::Uuid;
 use crate::app::AppState;
 use crate::auth::AuthUser;
 use crate::error::AppError;
-use crate::models::{Event, EventInput, SeriesInput};
+use crate::models::{Event, EventInput, SeriesInput, SeriesUpdateInput};
 
 #[derive(Deserialize)]
 pub struct ListQuery {
@@ -216,4 +216,77 @@ pub async fn create_series(
     }
     tx.commit().await?;
     Ok((StatusCode::CREATED, Json(rows)))
+}
+
+pub async fn update_series(
+    _: AuthUser,
+    State(s): State<AppState>,
+    Path(id): Path<Uuid>,
+    Query(q): Query<ScopeQuery>,
+    Json(input): Json<SeriesUpdateInput>,
+) -> Result<Json<Vec<Event>>, AppError> {
+    if input.title.trim().is_empty() {
+        return Err(AppError::BadRequest("title is required".into()));
+    }
+    let target = sqlx::query_as::<_, Event>("select * from event where id = $1")
+        .bind(id)
+        .fetch_optional(&s.pool)
+        .await?
+        .ok_or(AppError::NotFound)?;
+    let sid = target
+        .series_id
+        .ok_or_else(|| AppError::BadRequest("event is not part of a series".into()))?;
+    let all_day = input.all_day.unwrap_or(false);
+
+    let map_fk = |e: sqlx::Error| match e {
+        sqlx::Error::Database(ref db) if db.is_foreign_key_violation() => {
+            AppError::BadRequest("project_id or contact_id does not exist".into())
+        }
+        other => AppError::Db(other),
+    };
+
+    let rows = match q.scope.as_deref() {
+        Some("series") => sqlx::query_as::<_, Event>(
+            "update event set title=$2, notes=$3, project_id=$4, contact_id=$5, all_day=$6, \
+             starts_at = starts_at + ($7::bigint * interval '1 second'), \
+             ends_at   = ends_at   + ($7::bigint * interval '1 second') \
+             where series_id=$1 returning *",
+        )
+        .bind(sid)
+        .bind(&input.title)
+        .bind(&input.notes)
+        .bind(input.project_id)
+        .bind(input.contact_id)
+        .bind(all_day)
+        .bind(input.shift_seconds)
+        .fetch_all(&s.pool)
+        .await
+        .map_err(map_fk)?,
+
+        Some("following") => {
+            let new_sid = Uuid::new_v4();
+            sqlx::query_as::<_, Event>(
+                "update event set title=$2, notes=$3, project_id=$4, contact_id=$5, all_day=$6, \
+                 starts_at = starts_at + ($7::bigint * interval '1 second'), \
+                 ends_at   = ends_at   + ($7::bigint * interval '1 second'), \
+                 series_id = $8 \
+                 where series_id=$1 and starts_at >= $9 returning *",
+            )
+            .bind(sid)
+            .bind(&input.title)
+            .bind(&input.notes)
+            .bind(input.project_id)
+            .bind(input.contact_id)
+            .bind(all_day)
+            .bind(input.shift_seconds)
+            .bind(new_sid)
+            .bind(target.starts_at)
+            .fetch_all(&s.pool)
+            .await
+            .map_err(map_fk)?
+        }
+
+        _ => return Err(AppError::BadRequest("scope must be 'following' or 'series'".into())),
+    };
+    Ok(Json(rows))
 }
