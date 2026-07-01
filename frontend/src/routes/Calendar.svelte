@@ -100,6 +100,9 @@
         project_id: ev.project_id ?? '',
         contact_id: ev.contact_id ?? '',
         notes: ev.notes ?? '',
+        series_id: ev.series_id ?? null,
+        orig_starts_at: ev.starts_at,
+        scope: 'one',
       },
     }
   }
@@ -157,7 +160,21 @@
           await api.post('/api/events', body)
         }
       } else {
-        await api.put(`/api/events/${ev.id}`, body)
+        if (ev.series_id && ev.scope !== 'one') {
+          const shift_seconds = Math.round(
+            (new Date(body.starts_at).getTime() - new Date(ev.orig_starts_at).getTime()) / 1000
+          )
+          await api.patch(`/api/events/${ev.id}/series?scope=${ev.scope}`, {
+            title: body.title,
+            notes: body.notes,
+            project_id: body.project_id,
+            contact_id: body.contact_id,
+            all_day: body.all_day,
+            shift_seconds,
+          })
+        } else {
+          await api.put(`/api/events/${ev.id}`, body)
+        }
       }
       modal = null
       const { from, to } = monthRange(year, monthIndex)
@@ -166,8 +183,10 @@
   }
 
   async function deleteEvent() {
+    const ev = modal.ev
+    const scope = ev.series_id ? ev.scope : 'one'
     try {
-      await api.del(`/api/events/${modal.ev.id}`)
+      await api.del(`/api/events/${ev.id}?scope=${scope}`)
       modal = null
       const { from, to } = monthRange(year, monthIndex)
       events = await api.get(`/api/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`)
@@ -331,6 +350,16 @@
         <p class="label mb-1.5">Notes <span class="text-faint">(optional)</span></p>
         <textarea bind:value={modal.ev.notes} placeholder="Notes…" rows="2" class="{FIELD} resize-none"></textarea>
       </div>
+      {#if modal.mode === 'edit' && modal.ev.series_id}
+        <div>
+          <p class="label mb-1.5">Apply to</p>
+          <select bind:value={modal.ev.scope} class={FIELD}>
+            <option value="one">This event only</option>
+            <option value="following">This and following</option>
+            <option value="series">Entire series</option>
+          </select>
+        </div>
+      {/if}
       <div class="flex gap-2 pt-1">
         <button type="submit" class="flex-1 h-9 rounded-sm bg-accent font-mono text-[13px] font-bold text-on-accent transition glow-soft hover:brightness-110">
           {modal.mode === 'new' ? 'create' : 'save'}
