@@ -208,3 +208,24 @@ async fn event_range_filter(pool: sqlx::PgPool) {
     assert_eq!(arr.len(), 1);
     assert_eq!(arr[0]["title"], "In");
 }
+
+#[sqlx::test]
+async fn created_event_exposes_null_series_id(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+    let (status, e) = send(
+        &app,
+        json_req(
+            "POST",
+            "/api/events",
+            json!({"title":"Solo","starts_at":"2026-07-01T10:00:00Z","ends_at":"2026-07-01T11:00:00Z"}),
+        )
+        .with_cookie(&cookie),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED);
+    // Field must be PRESENT in the response and null for a standalone event.
+    assert!(e.as_object().unwrap().contains_key("series_id"));
+    assert!(e["series_id"].is_null());
+}

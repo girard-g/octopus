@@ -82,6 +82,7 @@ pub struct Event {
     pub contact_id: Option<Uuid>,
     pub notes: Option<String>,
     pub created_at: DateTime<Utc>,
+    pub series_id: Option<Uuid>,
 }
 
 #[derive(Debug, Deserialize)]
