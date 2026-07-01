@@ -30,7 +30,9 @@ pub async fn get(_: AuthUser, State(s): State<AppState>) -> Result<Json<Dashboar
     .await?;
 
     let due_tasks = sqlx::query_as::<_, Task>(
-        "select * from task where status <> 'done' order by due_on nulls last, created_at limit 20",
+        "select t.*, p.title as project_title from task t \
+         left join project p on p.id = t.project_id \
+         where t.status <> 'done' order by t.due_on nulls last, t.created_at limit 20",
     )
     .fetch_all(&s.pool)
     .await?;

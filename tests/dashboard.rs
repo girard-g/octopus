@@ -56,3 +56,18 @@ async fn dashboard_upcoming_events_excludes_past(pool: sqlx::PgPool) {
     assert!(upcoming.iter().any(|e| e["title"] == "FutureEvent"), "future event missing from upcoming_events");
     assert!(!upcoming.iter().any(|e| e["title"] == "PastEvent"), "past event must not appear in upcoming_events");
 }
+
+#[sqlx::test]
+async fn dashboard_due_tasks_have_project_title(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+
+    let (_, p) = send(&app, json_req("POST", "/api/projects", json!({"title":"Acme"})).with_cookie(&cookie)).await;
+    let pid = p["id"].as_str().unwrap();
+    send(&app, json_req("POST", "/api/tasks", json!({"title":"T","project_id":pid})).with_cookie(&cookie)).await;
+
+    let (_, dash) = send(&app, json_req("GET", "/api/dashboard", json!(null)).with_cookie(&cookie)).await;
+    let due = &dash["due_tasks"];
+    assert_eq!(due[0]["project_title"], "Acme");
+}
