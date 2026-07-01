@@ -25,7 +25,7 @@ pub struct ContactInput {
 #[derive(Debug, Serialize, sqlx::FromRow)]
 pub struct Project {
     pub id: Uuid,
-    pub contact_id: Uuid,
+    pub contact_id: Option<Uuid>,
     pub title: String,
     pub status: String,
     pub description: Option<String>,
@@ -37,7 +37,7 @@ pub struct Project {
 
 #[derive(Debug, Deserialize)]
 pub struct ProjectInput {
-    pub contact_id: Uuid,
+    pub contact_id: Option<Uuid>,
     pub title: String,
     pub status: Option<String>,
     pub description: Option<String>,

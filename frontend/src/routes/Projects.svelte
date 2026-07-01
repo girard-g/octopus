@@ -9,7 +9,7 @@
   let projects = $state([])
   let contacts = $state([])
   let error = $state('')
-  let creating = $state(null)              // {contact_id, title} | null
+  let creating = $state(null)              // { title } | null
 
   const contactsById = $derived(Object.fromEntries(contacts.map((c) => [c.id, c.name])))
 
@@ -23,12 +23,12 @@
     } catch (e) { error = e.message }
   }
 
-  function openNew() { creating = { contact_id: contacts[0]?.id ?? '', title: '' } }
+  function openNew() { creating = { title: '' } }
   async function createProject(e) {
     e.preventDefault()
-    if (!creating.contact_id || !creating.title.trim()) return
+    if (!creating.title.trim()) return
     try {
-      await api.post('/api/projects', { contact_id: creating.contact_id, title: creating.title.trim() })
+      await api.post('/api/projects', { title: creating.title.trim() })
       creating = null
       filter = 'active'   // new projects default to active — show it
       await load()
@@ -80,12 +80,6 @@
 {#if creating}
   <Modal title="New project" onclose={() => (creating = null)}>
     <form onsubmit={createProject} class="flex flex-col gap-3">
-      <div>
-        <p class="label mb-1.5">Contact</p>
-        <select bind:value={creating.contact_id} required class={FIELD}>
-          {#each contacts as c}<option value={c.id}>{c.name}</option>{/each}
-        </select>
-      </div>
       <div>
         <p class="label mb-1.5">Title</p>
         <input bind:value={creating.title} placeholder="Project title" required class={FIELD} />

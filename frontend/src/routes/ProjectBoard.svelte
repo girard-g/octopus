@@ -91,7 +91,7 @@
     e.preventDefault()
     try {
       await api.put('/api/projects/' + id, {
-        contact_id: editing.contact_id,
+        contact_id: editing.contact_id || null,
         title: editing.title,
         description: editing.description || null,
         invoice_url: editing.invoice_url || null,
@@ -278,6 +278,7 @@
       <div>
         <p class="label mb-1.5">Contact</p>
         <select bind:value={editing.contact_id} class={FIELD}>
+          <option value={null}>— none —</option>
           {#each contacts as c}<option value={c.id}>{c.name}</option>{/each}
         </select>
       </div>

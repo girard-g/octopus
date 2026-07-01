@@ -25,6 +25,21 @@ async fn project_create_defaults_to_active(pool: sqlx::PgPool) {
 }
 
 #[sqlx::test]
+async fn project_create_without_contact(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+
+    let (status, p) = send(
+        &app,
+        json_req("POST", "/api/projects", json!({"title": "Solo"})).with_cookie(&cookie),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED);
+    assert!(p["contact_id"].is_null());
+}
+
+#[sqlx::test]
 async fn project_list_filters_by_status(pool: sqlx::PgPool) {
     std::env::set_var("APP_PASSWORD", "secret");
     let app = test_app(pool);
