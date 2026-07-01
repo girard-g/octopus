@@ -8,9 +8,12 @@ export function groupTasks(tasks) {
   return cols
 }
 
-// After a dnd drop, compute PUT payloads: only items whose status differs from the column.
+// After a dnd drop, compute deltas for a column: any item whose status or
+// position (its index in the column) changed. Callers send the FULL task
+// object with these fields overridden.
 export function movesForTaskColumn(status, items) {
   return items
-    .filter((t) => t.status !== status)
-    .map((t) => ({ id: t.id, status }))
+    .map((t, i) => ({ t, i }))
+    .filter(({ t, i }) => t.status !== status || t.position !== i)
+    .map(({ t, i }) => ({ id: t.id, status, position: i }))
 }

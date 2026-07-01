@@ -55,7 +55,7 @@
 
   async function toggleDone(t) {
     try {
-      await api.put(`/api/tasks/${t.id}`, { title: t.title, status: 'done', project_id: t.project_id, due_on: t.due_on })
+      await api.put(`/api/tasks/${t.id}`, { ...t, status: 'done' })
       await load()
     } catch (e) { error = e.message }
   }

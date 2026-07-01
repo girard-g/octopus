@@ -57,12 +57,7 @@
         try {
           for (const m of moves) {
             const t = e.detail.items.find((x) => x.id === m.id)
-            await api.put('/api/tasks/' + m.id, {
-              title: t.title,
-              status: m.status,
-              project_id: id,
-              due_on: t.due_on ?? null,
-            })
+            await api.put('/api/tasks/' + m.id, { ...t, status: m.status, position: m.position, project_id: id })
           }
         } catch (err) { error = err.message }
         await load()

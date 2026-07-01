@@ -14,18 +14,21 @@ describe('tasks helpers', () => {
     expect(TASK_STATUSES.every((s) => Array.isArray(cols[s]))).toBe(true)
   })
 
-  it('emits a move when an item lands in a different-status column', () => {
+  it('emits moves with new position for reordered or moved items', () => {
     const moves = movesForTaskColumn('doing', [
-      { id: 'x', status: 'todo' },
-      { id: 'y', status: 'doing' },
+      { id: 'x', status: 'todo', position: 0 },   // status changed
+      { id: 'y', status: 'doing', position: 5 },   // position changed (now index 1)
     ])
-    expect(moves).toEqual([{ id: 'x', status: 'doing' }])
+    expect(moves).toEqual([
+      { id: 'x', status: 'doing', position: 0 },
+      { id: 'y', status: 'doing', position: 1 },
+    ])
   })
 
-  it('emits no moves when all items already have the column status', () => {
+  it('emits no moves when status and position are already correct', () => {
     const moves = movesForTaskColumn('done', [
-      { id: 'a', status: 'done' },
-      { id: 'b', status: 'done' },
+      { id: 'a', status: 'done', position: 0 },
+      { id: 'b', status: 'done', position: 1 },
     ])
     expect(moves).toEqual([])
   })
