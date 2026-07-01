@@ -9,7 +9,7 @@ use crate::models::{Event, Project, Task};
 
 #[derive(Serialize)]
 pub struct Counts {
-    pub leads: i64,
+    pub projects: i64,
     pub active: i64,
     pub open_tasks: i64,
 }
@@ -24,7 +24,7 @@ pub struct Dashboard {
 
 pub async fn get(_: AuthUser, State(s): State<AppState>) -> Result<Json<Dashboard>, AppError> {
     let active_projects = sqlx::query_as::<_, Project>(
-        "select * from project where status = 'active' order by board_order, created_at",
+        "select * from project where status = 'active' order by created_at",
     )
     .fetch_all(&s.pool)
     .await?;
@@ -35,7 +35,7 @@ pub async fn get(_: AuthUser, State(s): State<AppState>) -> Result<Json<Dashboar
     .fetch_all(&s.pool)
     .await?;
 
-    let leads: i64 = sqlx::query_scalar("select count(*) from project where status = 'lead'")
+    let projects: i64 = sqlx::query_scalar("select count(*) from project")
         .fetch_one(&s.pool)
         .await?;
     let active: i64 = sqlx::query_scalar("select count(*) from project where status = 'active'")
@@ -56,7 +56,7 @@ pub async fn get(_: AuthUser, State(s): State<AppState>) -> Result<Json<Dashboar
     Ok(Json(Dashboard {
         active_projects,
         due_tasks,
-        counts: Counts { leads, active, open_tasks },
+        counts: Counts { projects, active, open_tasks },
         upcoming_events,
     }))
 }

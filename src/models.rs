@@ -30,7 +30,8 @@ pub struct Project {
     pub status: String,
     pub description: Option<String>,
     pub invoice_url: Option<String>,
-    pub board_order: i32,
+    #[sqlx(default)]
+    pub task_count: i64,
     pub created_at: DateTime<Utc>,
 }
 
@@ -41,12 +42,6 @@ pub struct ProjectInput {
     pub status: Option<String>,
     pub description: Option<String>,
     pub invoice_url: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct ProjectMove {
-    pub status: String,
-    pub board_order: i32,
 }
 
 #[derive(Debug, Serialize, sqlx::FromRow)]
@@ -68,7 +63,7 @@ pub struct TaskInput {
 }
 
 pub const CONTACT_KINDS: [&str; 2] = ["person", "company"];
-pub const PROJECT_STATUSES: [&str; 5] = ["lead", "proposal", "active", "done", "lost"];
+pub const PROJECT_STATUSES: [&str; 2] = ["active", "archived"];
 pub const TASK_STATUSES: [&str; 3] = ["todo", "doing", "done"];
 
 #[derive(Debug, Serialize, sqlx::FromRow)]

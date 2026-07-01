@@ -42,7 +42,6 @@ pub fn build_router(state: AppState) -> Router {
             "/api/projects/{id}",
             get(projects::get).put(projects::update).delete(projects::delete),
         )
-        .route("/api/projects/{id}/move", patch(projects::move_))
         .route("/api/tasks", get(tasks::list).post(tasks::create))
         .route("/api/tasks/{id}", axum::routing::put(tasks::update).delete(tasks::delete))
         .route("/api/events", get(events::list).post(events::create))

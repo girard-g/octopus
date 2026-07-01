@@ -7,7 +7,7 @@ use uuid::Uuid;
 use crate::app::AppState;
 use crate::auth::AuthUser;
 use crate::error::AppError;
-use crate::models::{Project, ProjectInput, ProjectMove, PROJECT_STATUSES};
+use crate::models::{Project, ProjectInput, PROJECT_STATUSES};
 
 #[derive(Deserialize)]
 pub struct ListQuery {
@@ -31,16 +31,22 @@ pub async fn list(
         Some(st) => {
             check_status(&st)?;
             sqlx::query_as::<_, Project>(
-                "select * from project where status = $1 order by board_order, created_at",
+                "select p.*, count(t.id) as task_count from project p \
+                 left join task t on t.project_id = p.id \
+                 where p.status = $1 group by p.id order by p.created_at",
             )
             .bind(st)
             .fetch_all(&s.pool)
             .await?
         }
         None => {
-            sqlx::query_as::<_, Project>("select * from project order by board_order, created_at")
-                .fetch_all(&s.pool)
-                .await?
+            sqlx::query_as::<_, Project>(
+                "select p.*, count(t.id) as task_count from project p \
+                 left join task t on t.project_id = p.id \
+                 group by p.id order by p.created_at",
+            )
+            .fetch_all(&s.pool)
+            .await?
         }
     };
     Ok(Json(rows))
@@ -54,7 +60,7 @@ pub async fn create(
     if input.title.trim().is_empty() {
         return Err(AppError::BadRequest("title is required".into()));
     }
-    let status = input.status.clone().unwrap_or_else(|| "lead".to_string());
+    let status = input.status.clone().unwrap_or_else(|| "active".to_string());
     check_status(&status)?;
     let row = sqlx::query_as::<_, Project>(
         "insert into project (contact_id, title, status, description, invoice_url) \
@@ -98,15 +104,19 @@ pub async fn update(
     if input.title.trim().is_empty() {
         return Err(AppError::BadRequest("title is required".into()));
     }
+    if let Some(ref st) = input.status {
+        check_status(st)?;
+    }
     let row = sqlx::query_as::<_, Project>(
-        "update project set contact_id=$2, title=$3, description=$4, invoice_url=$5 \
-         where id=$1 returning *",
+        "update project set contact_id=$2, title=$3, description=$4, invoice_url=$5, \
+         status=coalesce($6, status) where id=$1 returning *",
     )
     .bind(id)
     .bind(input.contact_id)
     .bind(&input.title)
     .bind(&input.description)
     .bind(&input.invoice_url)
+    .bind(&input.status)
     .fetch_optional(&s.pool)
     .await
     .map_err(|e| match e {
@@ -115,25 +125,6 @@ pub async fn update(
         }
         other => AppError::Db(other),
     })?
-    .ok_or(AppError::NotFound)?;
-    Ok(Json(row))
-}
-
-pub async fn move_(
-    _: AuthUser,
-    State(s): State<AppState>,
-    Path(id): Path<Uuid>,
-    Json(mv): Json<ProjectMove>,
-) -> Result<Json<Project>, AppError> {
-    check_status(&mv.status)?;
-    let row = sqlx::query_as::<_, Project>(
-        "update project set status=$2, board_order=$3 where id=$1 returning *",
-    )
-    .bind(id)
-    .bind(&mv.status)
-    .bind(mv.board_order)
-    .fetch_optional(&s.pool)
-    .await?
     .ok_or(AppError::NotFound)?;
     Ok(Json(row))
 }
