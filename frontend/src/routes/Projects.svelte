@@ -70,7 +70,11 @@
     >
       <div class="font-mono text-[13px] font-medium leading-snug text-ink">{p.title}</div>
       <div class="mt-1 truncate font-mono text-[11px] text-faint">{contactsById[p.contact_id] ?? '—'}</div>
-      <div class="mt-3 font-mono text-[11px] tabular-nums text-faint"><span class="text-accent-dim">&gt;</span> {p.task_count} task{p.task_count === 1 ? '' : 's'}</div>
+      <div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] tabular-nums text-faint">
+        <span><span class="text-accent-dim">&gt;</span> {p.done_count}/{p.task_count} done</span>
+        {#if p.overdue_count > 0}<span class="text-st-lost">{p.overdue_count} overdue</span>{/if}
+        {#if p.next_due}<span>next {p.next_due}</span>{/if}
+      </div>
     </button>
   {:else}
     <p class="col-span-full py-10 text-center font-mono text-[13px] text-faint">// no {filter} projects</p>
