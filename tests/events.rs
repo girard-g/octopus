@@ -398,3 +398,36 @@ async fn update_series_all_shifts_every_row(pool: sqlx::PgPool) {
         assert!(r["starts_at"].as_str().unwrap().contains("09:00:00")); // 10:00 - 1h
     }
 }
+
+#[sqlx::test]
+async fn following_split_survives_later_entire_series_edit(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+    let ids = make_weekly_series(&app, &cookie).await; // Jul 6,13,20,27 @10:00
+
+    let (_, first) = send(&app, json_req("GET", &format!("/api/events/{}", ids[0]), json!(null)).with_cookie(&cookie)).await;
+    let orig_sid = first["series_id"].as_str().unwrap().to_string();
+
+    // "this and following" from Jul 20: +1h, splits the tail to a new series_id
+    let (_, tail) = send(&app, json_req("PATCH", &format!("/api/events/{}/series?scope=following", ids[2]),
+        json!({"title":"Tail","notes":null,"project_id":null,"contact_id":null,"all_day":false,"shift_seconds":3600})).with_cookie(&cookie)).await;
+    let new_sid = tail.as_array().unwrap()[0]["series_id"].as_str().unwrap().to_string();
+    assert_ne!(new_sid, orig_sid);
+
+    // "entire series" on the ORIGINAL series (via ids[0]): -1h, rename — must touch ONLY the pre-split rows
+    let (_, updated) = send(&app, json_req("PATCH", &format!("/api/events/{}/series?scope=series", ids[0]),
+        json!({"title":"Head","notes":null,"project_id":null,"contact_id":null,"all_day":false,"shift_seconds":-3600})).with_cookie(&cookie)).await;
+    let arr = updated.as_array().unwrap();
+    assert_eq!(arr.len(), 2); // only Jul 6 & 13 remain on orig_sid
+    for r in arr {
+        assert_eq!(r["title"], "Head");
+        assert!(r["starts_at"].as_str().unwrap().contains("09:00:00"));
+    }
+
+    // the split tail (Jul 20 & 27) is untouched by the second edit
+    let (_, jul20) = send(&app, json_req("GET", &format!("/api/events/{}", ids[2]), json!(null)).with_cookie(&cookie)).await;
+    assert_eq!(jul20["title"], "Tail");
+    assert_eq!(jul20["series_id"].as_str().unwrap(), new_sid);
+    assert!(jul20["starts_at"].as_str().unwrap().contains("11:00:00"));
+}

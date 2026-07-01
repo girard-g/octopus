@@ -286,8 +286,8 @@
         <p class="label mb-1.5">Title</p>
         <input bind:value={modal.ev.title} placeholder="Event title" required class={FIELD} />
       </div>
-      <div class="flex items-center gap-2">
-        <input type="checkbox" id="all_day" bind:checked={modal.ev.all_day} class="accent-[#3ef5c4]" />
+      <div class="flex items-center gap-2" class:opacity-50={modal.ev.series_id && modal.ev.scope !== 'one'}>
+        <input type="checkbox" id="all_day" bind:checked={modal.ev.all_day} class="accent-[#3ef5c4]" disabled={modal.ev.series_id && modal.ev.scope !== 'one'} />
         <label for="all_day" class="font-mono text-[13px] text-muted cursor-pointer">All day</label>
       </div>
       {#if modal.ev.all_day}
@@ -296,9 +296,9 @@
             <p class="label mb-1.5">Start date</p>
             <input type="date" bind:value={modal.ev.starts_date} required class={FIELD} />
           </div>
-          <div>
+          <div class:opacity-50={modal.ev.series_id && modal.ev.scope !== 'one'}>
             <p class="label mb-1.5">End date</p>
-            <input type="date" bind:value={modal.ev.ends_date} required class={FIELD} />
+            <input type="date" bind:value={modal.ev.ends_date} required class={FIELD} disabled={modal.ev.series_id && modal.ev.scope !== 'one'} />
           </div>
         </div>
       {:else}
@@ -307,9 +307,9 @@
             <p class="label mb-1.5">Start</p>
             <input type="datetime-local" bind:value={modal.ev.starts_at_local} required class={FIELD} />
           </div>
-          <div>
+          <div class:opacity-50={modal.ev.series_id && modal.ev.scope !== 'one'}>
             <p class="label mb-1.5">End</p>
-            <input type="datetime-local" bind:value={modal.ev.ends_at_local} required class={FIELD} />
+            <input type="datetime-local" bind:value={modal.ev.ends_at_local} required class={FIELD} disabled={modal.ev.series_id && modal.ev.scope !== 'one'} />
           </div>
         </div>
       {/if}
@@ -358,6 +358,9 @@
             <option value="following">This and following</option>
             <option value="series">Entire series</option>
           </select>
+          {#if modal.ev.scope !== 'one'}
+            <p class="font-mono text-[11px] text-faint mt-1.5">Range edits change title/notes and shift the start time. End time and all-day are locked — use "This event only" to change them.</p>
+          {/if}
         </div>
       {/if}
       <div class="flex gap-2 pt-1">
