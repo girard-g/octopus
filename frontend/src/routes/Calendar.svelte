@@ -182,7 +182,7 @@
         }
       }
       modal = null
-      const { from, to } = monthRange(year, monthIndex)
+      const { from, to } = view === 'day' ? dayRange(selectedDate) : monthRange(year, monthIndex)
       events = await api.get(`/api/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`)
     } catch (err) { modalError = err.message }
   }
@@ -193,7 +193,7 @@
     try {
       await api.del(`/api/events/${ev.id}?scope=${scope}`)
       modal = null
-      const { from, to } = monthRange(year, monthIndex)
+      const { from, to } = view === 'day' ? dayRange(selectedDate) : monthRange(year, monthIndex)
       events = await api.get(`/api/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`)
     } catch (err) { modalError = err.message }
   }
