@@ -26,6 +26,10 @@
     { label: 'Open tasks', value: counts.open_tasks, accent: false },
   ])
 
+  const today = new Date().toISOString().slice(0, 10)   // YYYY-MM-DD, matches due_on
+  const overdue = $derived(dueTasks.filter((t) => t.due_on && t.due_on < today))
+  const upcoming = $derived(dueTasks.filter((t) => !t.due_on || t.due_on >= today))
+
   async function load() {
     error = ''
     try {
@@ -121,7 +125,7 @@
       </form>
     </div>
     <ul class="px-4 py-2">
-      {#each dueTasks as t}
+      {#snippet taskRow(t, isOverdue)}
         <li class="flex items-center gap-2.5 border-b border-border py-2 last:border-0">
           <input
             type="checkbox"
@@ -130,12 +134,16 @@
             aria-label="Mark {t.title} done"
             class="h-3.5 w-3.5 shrink-0 rounded-sm accent-accent"
           />
-          <span class="truncate font-mono text-[13px] text-ink" class:line-through={t.status === 'done'} class:text-faint={t.status === 'done'}>{t.title}</span>
-          {#if t.due_on}<span class="ml-auto shrink-0 font-mono text-[11px] tabular-nums text-faint">{t.due_on}</span>{/if}
+          <span class="truncate font-mono text-[13px]" class:text-ink={!isOverdue} class:text-st-lost={isOverdue}>{t.title}</span>
+          {#if t.project_title}<span class="shrink-0 font-mono text-[11px] text-faint">/{t.project_title}</span>{/if}
+          {#if t.due_on}<span class="ml-auto shrink-0 font-mono text-[11px] tabular-nums" class:text-st-lost={isOverdue} class:text-faint={!isOverdue}>{t.due_on}</span>{/if}
         </li>
-      {:else}
+      {/snippet}
+      {#each overdue as t}{@render taskRow(t, true)}{/each}
+      {#each upcoming as t}{@render taskRow(t, false)}{/each}
+      {#if dueTasks.length === 0}
         <li class="py-6 text-center font-mono text-[13px] text-faint">// nothing due</li>
-      {/each}
+      {/if}
     </ul>
   </section>
 </div>
