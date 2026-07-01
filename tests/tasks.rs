@@ -141,3 +141,48 @@ async fn task_rejects_bad_priority(pool: sqlx::PgPool) {
     .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
 }
+
+#[sqlx::test]
+async fn task_roundtrips_version_and_type(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+
+    let (status, t) = send(
+        &app,
+        json_req("POST", "/api/tasks", json!({
+            "title": "Ship v1", "version": "v1.0", "type": "feature"
+        })).with_cookie(&cookie),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED);
+    assert_eq!(t["version"], "v1.0");
+    assert_eq!(t["type"], "feature");
+
+    // Full-object PUT (drag path) must preserve both.
+    let id = t["id"].as_str().unwrap().to_string();
+    let (status, upd) = send(
+        &app,
+        json_req("PUT", &format!("/api/tasks/{id}"), json!({
+            "title": "Ship v1", "status": "doing",
+            "version": "v1.0", "type": "feature", "position": 0
+        })).with_cookie(&cookie),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(upd["version"], "v1.0");
+    assert_eq!(upd["type"], "feature");
+}
+
+#[sqlx::test]
+async fn task_rejects_bad_type(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+    let (status, _) = send(
+        &app,
+        json_req("POST", "/api/tasks", json!({"title":"X","type":"wibble"})).with_cookie(&cookie),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+}

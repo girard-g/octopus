@@ -71,6 +71,10 @@ pub struct Task {
     #[sqlx(json)]
     pub checklist: Vec<ChecklistItem>,
     pub position: i32,
+    pub version: Option<String>,
+    #[sqlx(rename = "type")]
+    #[serde(rename = "type")]
+    pub type_: Option<String>,
     #[sqlx(default)]
     pub project_title: Option<String>,
     pub created_at: DateTime<Utc>,
@@ -88,6 +92,9 @@ pub struct TaskInput {
     #[serde(default)]
     pub checklist: Vec<ChecklistItem>,
     pub position: Option<i32>,
+    pub version: Option<String>,
+    #[serde(rename = "type")]
+    pub type_: Option<String>,
 }
 
 pub const CONTACT_KINDS: [&str; 2] = ["person", "company"];
@@ -95,6 +102,7 @@ pub const PROJECT_STATUSES: [&str; 2] = ["active", "archived"];
 pub const TASK_STATUSES: [&str; 3] = ["todo", "doing", "done"];
 pub const PRIORITY_LEVELS: [&str; 3] = ["low", "medium", "high"];
 pub const TASK_SIZES: [&str; 5] = ["xs", "s", "m", "l", "xl"];
+pub const TASK_TYPES: [&str; 5] = ["feature", "bug", "enhancement", "chore", "docs"];
 
 #[derive(Debug, Serialize, sqlx::FromRow)]
 pub struct Event {

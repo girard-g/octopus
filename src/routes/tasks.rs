@@ -7,7 +7,7 @@ use uuid::Uuid;
 use crate::app::AppState;
 use crate::auth::AuthUser;
 use crate::error::AppError;
-use crate::models::{Task, TaskInput, PRIORITY_LEVELS, TASK_SIZES, TASK_STATUSES};
+use crate::models::{Task, TaskInput, PRIORITY_LEVELS, TASK_SIZES, TASK_STATUSES, TASK_TYPES};
 
 #[derive(Deserialize)]
 pub struct ListQuery {
@@ -62,9 +62,10 @@ pub async fn create(
     check_status(&status)?;
     check_optional(&input.priority, PRIORITY_LEVELS, "priority")?;
     check_optional(&input.size, TASK_SIZES, "size")?;
+    check_optional(&input.type_, TASK_TYPES, "type")?;
     let row = sqlx::query_as::<_, Task>(
-        "insert into task (project_id, title, status, due_on, priority, size, description, checklist, position) \
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9) returning *",
+        "insert into task (project_id, title, status, due_on, priority, size, description, checklist, position, version, type) \
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) returning *",
     )
     .bind(input.project_id)
     .bind(&input.title)
@@ -75,6 +76,8 @@ pub async fn create(
     .bind(&input.description)
     .bind(sqlx::types::Json(&input.checklist))
     .bind(input.position.unwrap_or(0))
+    .bind(&input.version)
+    .bind(&input.type_)
     .fetch_one(&s.pool)
     .await
     .map_err(|e| match e {
@@ -99,9 +102,10 @@ pub async fn update(
     check_status(&status)?;
     check_optional(&input.priority, PRIORITY_LEVELS, "priority")?;
     check_optional(&input.size, TASK_SIZES, "size")?;
+    check_optional(&input.type_, TASK_TYPES, "type")?;
     let row = sqlx::query_as::<_, Task>(
         "update task set project_id=$2, title=$3, status=$4, due_on=$5, priority=$6, \
-         size=$7, description=$8, checklist=$9, position=$10 where id=$1 returning *",
+         size=$7, description=$8, checklist=$9, position=$10, version=$11, type=$12 where id=$1 returning *",
     )
     .bind(id)
     .bind(input.project_id)
@@ -113,6 +117,8 @@ pub async fn update(
     .bind(&input.description)
     .bind(sqlx::types::Json(&input.checklist))
     .bind(input.position.unwrap_or(0))
+    .bind(&input.version)
+    .bind(&input.type_)
     .fetch_optional(&s.pool)
     .await
     .map_err(|e| match e {
