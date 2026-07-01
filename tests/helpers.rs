@@ -9,7 +9,7 @@ use tower::ServiceExt;
 
 pub fn test_app(pool: PgPool) -> Router {
     let key = Key::from(&[0u8; 64]);
-    build_router(AppState { pool, key })
+    build_router(AppState { pool, key, throttle: Default::default() })
 }
 
 pub async fn send(app: &Router, req: Request<Body>) -> (axum::http::StatusCode, serde_json::Value) {

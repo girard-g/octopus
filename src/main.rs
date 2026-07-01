@@ -25,5 +25,5 @@ async fn main() {
     let pool = connect_and_migrate(&database_url).await.expect("db connect/migrate failed");
     let key = Key::from(secret.as_bytes());
 
-    serve(AppState { pool, key }, port).await;
+    serve(AppState { pool, key, throttle: Default::default() }, port).await;
 }

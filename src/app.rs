@@ -5,9 +5,10 @@ use axum_extra::extract::cookie::Key;
 use serde_json::json;
 use sqlx::PgPool;
 use std::net::SocketAddr;
+use std::sync::{Arc, Mutex};
 use tower_http::services::{ServeDir, ServeFile};
 
-use crate::auth::{login, logout};
+use crate::auth::{login, logout, LoginThrottle};
 use crate::routes::contacts;
 use crate::routes::dashboard;
 use crate::routes::events;
@@ -19,6 +20,7 @@ use crate::routes::tasks;
 pub struct AppState {
     pub pool: PgPool,
     pub key: Key,
+    pub throttle: Arc<Mutex<LoginThrottle>>,
 }
 
 impl FromRef<AppState> for Key {
