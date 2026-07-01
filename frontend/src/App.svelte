@@ -4,7 +4,7 @@
   import Login from './routes/Login.svelte'
   import Dashboard from './routes/Dashboard.svelte'
   import Contacts from './routes/Contacts.svelte'
-  import Pipeline from './routes/Pipeline.svelte'
+  import Projects from './routes/Projects.svelte'
   import Calendar from './routes/Calendar.svelte'
   import Notes from './routes/Notes.svelte'
   import ProjectBoard from './routes/ProjectBoard.svelte'
@@ -17,7 +17,7 @@
     '/': Dashboard,
     '/contacts': Contacts,
     '/contacts/:id': ContactDetail,
-    '/pipeline': Pipeline,
+    '/projects': Projects,
     '/calendar': Calendar,
     '/notes': Notes,
     '/projects/:id': ProjectBoard,
@@ -27,7 +27,7 @@
   // Natural-case page titles (sr-only twin keeps innerText matchable for e2e
   // even though the visible title is lowercased for the terminal look).
   const TITLES = {
-    '/': 'Dashboard', '/contacts': 'Contacts', '/pipeline': 'Pipeline',
+    '/': 'Dashboard', '/contacts': 'Contacts', '/projects': 'Projects',
     '/calendar': 'Calendar', '/notes': 'Notes',
   }
   const title = $derived(

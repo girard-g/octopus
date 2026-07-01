@@ -4,11 +4,11 @@
   import { markLoggedOut } from '../session.svelte.js'
 
   // Numbered terminal nav. Source labels stay natural-case (e2e matches
-  // <a> textContent on 'Contacts'/'Pipeline'); CSS lowercases for the look.
+  // <a> textContent on 'Contacts'/'Projects'); CSS lowercases for the look.
   const items = [
     { href: '/', n: '01', label: 'Dashboard' },
     { href: '/contacts', n: '02', label: 'Contacts' },
-    { href: '/pipeline', n: '03', label: 'Pipeline' },
+    { href: '/projects', n: '03', label: 'Projects' },
     { href: '/calendar', n: '04', label: 'Calendar' },
     { href: '/notes', n: '05', label: 'Notes' },
   ]
