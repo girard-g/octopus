@@ -1,6 +1,6 @@
 // frontend/src/lib/calendar.test.js
 import { describe, it, expect } from 'vitest'
-import { monthMatrix, monthRange, eventsByDay, fmtTime, generateOccurrences, localDateTimeToUtc } from './calendar.js'
+import { monthMatrix, monthRange, eventsByDay, fmtTime, generateOccurrences, localDateTimeToUtc, dayRange, dayAgenda } from './calendar.js'
 
 // June 2026: monthIndex=5, year=2026. June 1 2026 is a Monday → gridStart = June 1.
 // Helpers use the LOCAL timezone basis; tests build their fixtures from local
@@ -188,5 +188,26 @@ describe('localDateTimeToUtc', () => {
   it('a non-midnight time never collapses to 00:00', () => {
     expect(fmtTime(localDateTimeToUtc('2026-07-01', '09:00'))).toBe('09:00')
     expect(fmtTime(localDateTimeToUtc('2026-12-31', '23:15'))).toBe('23:15')
+  })
+})
+
+describe('dayRange', () => {
+  it('spans one local day (from local midnight to next local midnight)', () => {
+    const { from, to } = dayRange('2026-07-01')
+    expect(from).toBe(new Date(2026, 6, 1, 0, 0, 0).toISOString())
+    expect(to).toBe(new Date(2026, 6, 2, 0, 0, 0).toISOString())
+  })
+})
+
+describe('dayAgenda', () => {
+  const events = [
+    { id: '1', title: 'Timed late', all_day: false, starts_at: new Date(2026, 6, 1, 15, 0).toISOString() },
+    { id: '2', title: 'All day', all_day: true, starts_at: new Date(2026, 6, 1, 0, 0).toISOString() },
+    { id: '3', title: 'Timed early', all_day: false, starts_at: new Date(2026, 6, 1, 9, 0).toISOString() },
+  ]
+  it('separates all-day and sorts timed ascending by start', () => {
+    const { allDay, timed } = dayAgenda(events)
+    expect(allDay.map((e) => e.id)).toEqual(['2'])
+    expect(timed.map((e) => e.id)).toEqual(['3', '1'])
   })
 })

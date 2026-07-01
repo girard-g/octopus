@@ -1,7 +1,7 @@
 <script>
   import { api } from '../lib/api.js'
   import Modal from '../lib/components/Modal.svelte'
-  import { monthMatrix, monthRange, eventsByDay, fmtTime, toISODate, generateOccurrences, localDateTimeToUtc } from '../lib/calendar.js'
+  import { monthMatrix, monthRange, eventsByDay, fmtTime, toISODate, generateOccurrences, localDateTimeToUtc, dayRange, dayAgenda } from '../lib/calendar.js'
 
   const FIELD = 'w-full rounded-sm border border-border bg-surface-2 px-2.5 py-2 font-mono text-[13px] text-ink placeholder:text-faint focus:border-accent focus:shadow-[0_0_0_3px_rgba(62,245,196,0.14)] focus:outline-none'
   const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -10,6 +10,8 @@
   const now = new Date()
   let year = $state(now.getFullYear())
   let monthIndex = $state(now.getMonth())
+  let view = $state('month') // 'month' | 'day'
+  let selectedDate = $state(toISODate(new Date()))
 
   let events = $state([])
   let projects = $state([])
@@ -27,12 +29,10 @@
   const todayIso = toISODate(new Date()) // LOCAL date, matches grid cell.iso
 
   $effect(() => {
-    // key on year+monthIndex
-    const y = year, m = monthIndex
-    const { from, to } = monthRange(y, m)
+    const range = view === 'day' ? dayRange(selectedDate) : monthRange(year, monthIndex)
     error = ''
     Promise.all([
-      api.get(`/api/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
+      api.get(`/api/events?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`),
       api.get('/api/projects'),
       api.get('/api/contacts'),
     ]).then(([evs, pjs, cts]) => {
@@ -41,6 +41,13 @@
       contacts = cts
     }).catch((e) => { error = e.message })
   })
+
+  const agenda = $derived(dayAgenda(events))
+  function shiftDay(delta) {
+    const d = new Date(`${selectedDate}T00:00:00`)
+    d.setDate(d.getDate() + delta)
+    selectedDate = toISODate(d)
+  }
 
   function prevMonth() {
     if (monthIndex === 0) { year -= 1; monthIndex = 11 } else { monthIndex -= 1 }
@@ -204,25 +211,41 @@
 
 <!-- Header bar -->
 <div class="rise mb-5 flex flex-wrap items-center gap-3">
-  <div class="flex items-center gap-2">
-    <button
-      onclick={prevMonth}
-      class="h-8 rounded-sm border border-border px-2.5 font-mono text-[13px] text-muted transition hover:border-accent-dim hover:text-ink"
-      aria-label="Previous month"
-    >[ &lt; ]</button>
-    <span class="font-mono text-[13px] text-accent glow-text tabular-nums">&gt; {monthLabel}</span>
-    <button
-      onclick={goToday}
-      class="h-8 rounded-sm border border-border px-2.5 font-mono text-[13px] text-muted transition hover:border-accent-dim hover:text-ink"
-    >[ today ]</button>
-    <button
-      onclick={nextMonth}
-      class="h-8 rounded-sm border border-border px-2.5 font-mono text-[13px] text-muted transition hover:border-accent-dim hover:text-ink"
-      aria-label="Next month"
-    >[ &gt; ]</button>
+  <div class="flex items-center gap-1">
+    <button onclick={() => (view = 'month')}
+      class="h-8 rounded-sm border px-2.5 font-mono text-[12px] transition {view === 'month' ? 'border-accent bg-accent-dim/20 text-accent' : 'border-border text-muted hover:text-ink'}">month</button>
+    <button onclick={() => (view = 'day')}
+      class="h-8 rounded-sm border px-2.5 font-mono text-[12px] transition {view === 'day' ? 'border-accent bg-accent-dim/20 text-accent' : 'border-border text-muted hover:text-ink'}">day</button>
   </div>
+  {#if view === 'month'}
+    <div class="flex items-center gap-2">
+      <button
+        onclick={prevMonth}
+        class="h-8 rounded-sm border border-border px-2.5 font-mono text-[13px] text-muted transition hover:border-accent-dim hover:text-ink"
+        aria-label="Previous month"
+      >[ &lt; ]</button>
+      <span class="font-mono text-[13px] text-accent glow-text tabular-nums">&gt; {monthLabel}</span>
+      <button
+        onclick={goToday}
+        class="h-8 rounded-sm border border-border px-2.5 font-mono text-[13px] text-muted transition hover:border-accent-dim hover:text-ink"
+      >[ today ]</button>
+      <button
+        onclick={nextMonth}
+        class="h-8 rounded-sm border border-border px-2.5 font-mono text-[13px] text-muted transition hover:border-accent-dim hover:text-ink"
+        aria-label="Next month"
+      >[ &gt; ]</button>
+    </div>
+  {/if}
+  {#if view === 'day'}
+    <div class="flex items-center gap-2">
+      <button onclick={() => shiftDay(-1)} class="h-8 rounded-sm border border-border px-2.5 font-mono text-[13px] text-muted transition hover:border-accent-dim hover:text-ink" aria-label="Previous day">[ &lt; ]</button>
+      <span class="font-mono text-[13px] text-accent glow-text tabular-nums">&gt; {selectedDate}</span>
+      <button onclick={() => (selectedDate = toISODate(new Date()))} class="h-8 rounded-sm border border-border px-2.5 font-mono text-[13px] text-muted transition hover:border-accent-dim hover:text-ink">[ today ]</button>
+      <button onclick={() => shiftDay(1)} class="h-8 rounded-sm border border-border px-2.5 font-mono text-[13px] text-muted transition hover:border-accent-dim hover:text-ink" aria-label="Next day">[ &gt; ]</button>
+    </div>
+  {/if}
   <button
-    onclick={() => openNew(todayIso)}
+    onclick={() => openNew(view === 'day' ? selectedDate : todayIso)}
     class="ml-auto inline-flex h-8 items-center gap-1.5 rounded-sm bg-accent px-3 font-mono text-[13px] font-bold text-on-accent transition glow-soft hover:brightness-110"
   >
     <span class="text-[15px] leading-none">+</span> new event
@@ -232,52 +255,77 @@
 {#if error}<p class="rise mb-4 rounded-sm border border-st-lost/30 bg-st-lost/10 px-3 py-2 font-mono text-[12px] text-st-lost">[ ERR ] {error}</p>{/if}
 
 <!-- Calendar grid -->
-<div class="rise rounded-sm border border-border bg-surface" style="animation-delay:40ms">
-  <!-- Day-of-week headers -->
-  <div class="grid grid-cols-7 border-b border-border">
-    {#each DOW as d}
-      <div class="px-2 py-1.5 font-mono text-[11px] text-faint text-center">{d}</div>
-    {/each}
-  </div>
-
-  <!-- 6 rows of days -->
-  {#each matrix as week}
-    <div class="grid grid-cols-7 border-b border-border/50 last:border-0">
-      {#each week as cell}
-        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-        <div
-          role="button"
-          tabindex="0"
-          onclick={() => openNew(cell.iso)}
-          onkeydown={(e) => handleDayKey(e, cell.iso)}
-          class="min-h-[90px] cursor-pointer border-r border-border/30 p-1.5 transition-colors duration-100 last:border-0 hover:bg-surface-2 {!cell.inMonth ? 'opacity-40' : ''}"
-          aria-label="New event on {cell.iso}"
-        >
-          <!-- Day number -->
-          <div class="mb-1 flex justify-end">
-            <span class="font-mono text-[12px] tabular-nums {cell.iso === todayIso ? 'rounded-sm bg-accent px-1 text-on-accent glow-soft font-bold' : 'text-faint'}">{cell.day}</span>
-          </div>
-          <!-- Event chips -->
-          {#if byDay.has(cell.iso)}
-            {@const dayEvents = byDay.get(cell.iso)}
-            {#each dayEvents.slice(0, 3) as ev}
-              <button
-                onclick={(e) => openEdit(ev, e)}
-                class="mb-0.5 w-full truncate rounded-sm bg-accent-dim/20 px-1.5 py-0.5 text-left font-mono text-[11px] text-accent transition hover:bg-accent-dim/40"
-                title="{ev.title}{ev.all_day ? '' : ' ' + fmtTime(ev.starts_at)}{ev.contact_ids?.length ? ' — ' + ev.contact_ids.map(contactName).join(', ') : ''}"
-              >
-                {#if !ev.all_day}<span class="text-faint">{fmtTime(ev.starts_at)} </span>{/if}{ev.title}
-              </button>
-            {/each}
-            {#if dayEvents.length > 3}
-              <div class="mt-0.5 font-mono text-[10px] text-faint">+{dayEvents.length - 3} more</div>
-            {/if}
-          {/if}
-        </div>
+{#if view === 'month'}
+  <div class="rise rounded-sm border border-border bg-surface" style="animation-delay:40ms">
+    <!-- Day-of-week headers -->
+    <div class="grid grid-cols-7 border-b border-border">
+      {#each DOW as d}
+        <div class="px-2 py-1.5 font-mono text-[11px] text-faint text-center">{d}</div>
       {/each}
     </div>
-  {/each}
-</div>
+
+    <!-- 6 rows of days -->
+    {#each matrix as week}
+      <div class="grid grid-cols-7 border-b border-border/50 last:border-0">
+        {#each week as cell}
+          <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+          <div
+            role="button"
+            tabindex="0"
+            onclick={() => openNew(cell.iso)}
+            onkeydown={(e) => handleDayKey(e, cell.iso)}
+            class="min-h-[90px] cursor-pointer border-r border-border/30 p-1.5 transition-colors duration-100 last:border-0 hover:bg-surface-2 {!cell.inMonth ? 'opacity-40' : ''}"
+            aria-label="New event on {cell.iso}"
+          >
+            <!-- Day number -->
+            <div class="mb-1 flex justify-end">
+              <span class="font-mono text-[12px] tabular-nums {cell.iso === todayIso ? 'rounded-sm bg-accent px-1 text-on-accent glow-soft font-bold' : 'text-faint'}">{cell.day}</span>
+            </div>
+            <!-- Event chips -->
+            {#if byDay.has(cell.iso)}
+              {@const dayEvents = byDay.get(cell.iso)}
+              {#each dayEvents.slice(0, 3) as ev}
+                <button
+                  onclick={(e) => openEdit(ev, e)}
+                  class="mb-0.5 w-full truncate rounded-sm bg-accent-dim/20 px-1.5 py-0.5 text-left font-mono text-[11px] text-accent transition hover:bg-accent-dim/40"
+                  title="{ev.title}{ev.all_day ? '' : ' ' + fmtTime(ev.starts_at)}{ev.contact_ids?.length ? ' — ' + ev.contact_ids.map(contactName).join(', ') : ''}"
+                >
+                  {#if !ev.all_day}<span class="text-faint">{fmtTime(ev.starts_at)} </span>{/if}{ev.title}
+                </button>
+              {/each}
+              {#if dayEvents.length > 3}
+                <div class="mt-0.5 font-mono text-[10px] text-faint">+{dayEvents.length - 3} more</div>
+              {/if}
+            {/if}
+          </div>
+        {/each}
+      </div>
+    {/each}
+  </div>
+{/if}
+
+{#if view === 'day'}
+  <div class="rise rounded-sm border border-border bg-surface" style="animation-delay:40ms">
+    {#if agenda.allDay.length === 0 && agenda.timed.length === 0}
+      <p class="px-4 py-8 text-center font-mono text-[13px] text-faint">// no events</p>
+    {:else}
+      {#each agenda.allDay as ev}
+        <button onclick={(e) => openEdit(ev, e)} class="flex w-full items-center gap-3 border-b border-border/50 px-4 py-2.5 text-left transition hover:bg-surface-2">
+          <span class="w-14 font-mono text-[11px] text-faint">all-day</span>
+          <span class="font-mono text-[13px] text-ink">{ev.title}</span>
+          {#if ev.contact_ids?.length}<span class="font-mono text-[11px] text-accent">{ev.contact_ids.map(contactName).map((n) => '@' + n).join(' ')}</span>{/if}
+        </button>
+      {/each}
+      {#each agenda.timed as ev}
+        <button onclick={(e) => openEdit(ev, e)} class="flex w-full items-center gap-3 border-b border-border/50 px-4 py-2.5 text-left transition last:border-0 hover:bg-surface-2">
+          <span class="w-14 font-mono text-[12px] tabular-nums text-accent">{fmtTime(ev.starts_at)}</span>
+          <span class="font-mono text-[13px] text-ink">{ev.title}</span>
+          {#if ev.contact_ids?.length}<span class="font-mono text-[11px] text-accent">{ev.contact_ids.map(contactName).map((n) => '@' + n).join(' ')}</span>{/if}
+        </button>
+      {/each}
+    {/if}
+  </div>
+{/if}
 
 <!-- Event modal -->
 {#if modal}

@@ -115,6 +115,29 @@ export function generateOccurrences({ start, end, freq, until }) {
 }
 
 /**
+ * dayRange(iso) → { from, to } RFC3339 UTC instants bounding the local day
+ * `iso` ('YYYY-MM-DD'): local midnight → next local midnight. For the day fetch.
+ */
+export function dayRange(iso) {
+  const start = new Date(`${iso}T00:00:00`)
+  const end = new Date(start)
+  end.setDate(start.getDate() + 1)
+  return { from: start.toISOString(), to: end.toISOString() }
+}
+
+/**
+ * dayAgenda(events) → { allDay, timed }. All-day events separated out; timed
+ * events sorted ascending by start. Used by the day view.
+ */
+export function dayAgenda(events) {
+  const allDay = events.filter((e) => e.all_day)
+  const timed = events
+    .filter((e) => !e.all_day)
+    .sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at))
+  return { allDay, timed }
+}
+
+/**
  * localDateTimeToUtc(dateStr, timeStr) → RFC3339 UTC string.
  * dateStr 'YYYY-MM-DD', timeStr 'HH:MM' — interpreted in LOCAL time (a datetime
  * string without a timezone is local per the JS spec), so the wall-clock time is
