@@ -268,6 +268,57 @@ async fn create_series_rejects_empty(pool: sqlx::PgPool) {
     assert_eq!(status, StatusCode::BAD_REQUEST);
 }
 
+async fn make_weekly_series(app: &axum::Router, cookie: &str) -> Vec<String> {
+    let body = json!({
+        "occurrences": [
+            {"title":"W","starts_at":"2026-07-06T10:00:00Z","ends_at":"2026-07-06T10:15:00Z"},
+            {"title":"W","starts_at":"2026-07-13T10:00:00Z","ends_at":"2026-07-13T10:15:00Z"},
+            {"title":"W","starts_at":"2026-07-20T10:00:00Z","ends_at":"2026-07-20T10:15:00Z"},
+            {"title":"W","starts_at":"2026-07-27T10:00:00Z","ends_at":"2026-07-27T10:15:00Z"}
+        ]
+    });
+    let (_, rows) = send(app, json_req("POST", "/api/events/series", body).with_cookie(cookie)).await;
+    rows.as_array().unwrap().iter().map(|r| r["id"].as_str().unwrap().to_string()).collect()
+}
+
+async fn event_count(app: &axum::Router, cookie: &str) -> usize {
+    let (_, list) = send(app, json_req("GET", "/api/events", json!(null)).with_cookie(cookie)).await;
+    list.as_array().unwrap().len()
+}
+
+#[sqlx::test]
+async fn delete_scope_one_removes_single_occurrence(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+    let ids = make_weekly_series(&app, &cookie).await;
+    let (status, _) = send(&app, json_req("DELETE", &format!("/api/events/{}?scope=one", ids[1]), json!(null)).with_cookie(&cookie)).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    assert_eq!(event_count(&app, &cookie).await, 3);
+}
+
+#[sqlx::test]
+async fn delete_scope_following_removes_from_target_onward(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+    let ids = make_weekly_series(&app, &cookie).await; // ids[2] = Jul 20
+    let (status, _) = send(&app, json_req("DELETE", &format!("/api/events/{}?scope=following", ids[2]), json!(null)).with_cookie(&cookie)).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    assert_eq!(event_count(&app, &cookie).await, 2); // Jul 6 & 13 remain
+}
+
+#[sqlx::test]
+async fn delete_scope_series_removes_all(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+    let ids = make_weekly_series(&app, &cookie).await;
+    let (status, _) = send(&app, json_req("DELETE", &format!("/api/events/{}?scope=series", ids[0]), json!(null)).with_cookie(&cookie)).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    assert_eq!(event_count(&app, &cookie).await, 0);
+}
+
 #[sqlx::test]
 async fn create_series_rejects_oversize(pool: sqlx::PgPool) {
     std::env::set_var("APP_PASSWORD", "secret");

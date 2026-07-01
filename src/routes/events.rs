@@ -120,15 +120,47 @@ pub async fn update(
     Ok(Json(row))
 }
 
+#[derive(Deserialize)]
+pub struct ScopeQuery {
+    pub scope: Option<String>,
+}
+
 pub async fn delete(
     _: AuthUser,
     State(s): State<AppState>,
     Path(id): Path<Uuid>,
+    Query(q): Query<ScopeQuery>,
 ) -> Result<StatusCode, AppError> {
-    let res = sqlx::query("delete from event where id = $1")
-        .bind(id)
-        .execute(&s.pool)
-        .await?;
+    let res = match q.scope.as_deref() {
+        Some("following") | Some("series") => {
+            let target = sqlx::query_as::<_, Event>("select * from event where id = $1")
+                .bind(id)
+                .fetch_optional(&s.pool)
+                .await?
+                .ok_or(AppError::NotFound)?;
+            let sid = target
+                .series_id
+                .ok_or_else(|| AppError::BadRequest("event is not part of a series".into()))?;
+            if q.scope.as_deref() == Some("following") {
+                sqlx::query("delete from event where series_id = $1 and starts_at >= $2")
+                    .bind(sid)
+                    .bind(target.starts_at)
+                    .execute(&s.pool)
+                    .await?
+            } else {
+                sqlx::query("delete from event where series_id = $1")
+                    .bind(sid)
+                    .execute(&s.pool)
+                    .await?
+            }
+        }
+        _ => {
+            sqlx::query("delete from event where id = $1")
+                .bind(id)
+                .execute(&s.pool)
+                .await?
+        }
+    };
     if res.rows_affected() == 0 {
         return Err(AppError::NotFound);
     }
