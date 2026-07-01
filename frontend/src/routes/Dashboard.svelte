@@ -2,7 +2,7 @@
   import { api } from '../lib/api.js'
   import { fmtTime } from '../lib/calendar.js'
 
-  let counts = $state({ leads: 0, active: 0, open_tasks: 0 })
+  let counts = $state({ projects: 0, active: 0, open_tasks: 0 })
   let activeProjects = $state([])
   let dueTasks = $state([])
   let upcomingEvents = $state([])
@@ -21,7 +21,7 @@
   }
 
   const tiles = $derived([
-    { label: 'Leads', value: counts.leads, accent: false },
+    { label: 'Projects', value: counts.projects, accent: false },
     { label: 'Active projects', value: counts.active, accent: true },
     { label: 'Open tasks', value: counts.open_tasks, accent: false },
   ])

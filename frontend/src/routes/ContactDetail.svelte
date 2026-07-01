@@ -4,8 +4,7 @@
 
   const FIELD = 'w-full rounded-sm border border-border bg-surface-2 px-2.5 py-2 font-mono text-[13px] text-ink placeholder:text-faint focus:border-accent focus:shadow-[0_0_0_3px_rgba(62,245,196,0.14)] focus:outline-none'
   const PROJECT_STATUS_TEXT = {
-    lead: 'text-st-lead', proposal: 'text-st-proposal', active: 'text-st-active',
-    done: 'text-st-done', lost: 'text-st-lost',
+    active: 'text-st-active', archived: 'text-muted',
   }
 
   let { params } = $props()

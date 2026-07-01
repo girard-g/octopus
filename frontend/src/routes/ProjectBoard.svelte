@@ -12,8 +12,7 @@
     done:  { text: 'text-st-done',     bar: 'bg-st-done' },
   }
   const PROJECT_STATUS_TEXT = {
-    lead: 'text-st-lead', proposal: 'text-st-proposal', active: 'text-st-active',
-    done: 'text-st-done', lost: 'text-st-lost',
+    active: 'text-st-active', archived: 'text-muted',
   }
   const FIELD = 'w-full rounded-sm border border-border bg-surface-2 px-2.5 py-2 font-mono text-[13px] text-ink placeholder:text-faint focus:border-accent focus:shadow-[0_0_0_3px_rgba(62,245,196,0.14)] focus:outline-none'
 
@@ -104,8 +103,22 @@
 
   async function deleteProject() {
     if (!confirm('Delete ' + (project?.title ?? 'this project') + '?')) return
-    try { await api.del('/api/projects/' + id); push('/pipeline') }
+    try { await api.del('/api/projects/' + id); push('/projects') }
     catch (e) { error = e.message }
+  }
+
+  async function toggleArchive() {
+    const next = project.status === 'archived' ? 'active' : 'archived'
+    try {
+      await api.put('/api/projects/' + id, {
+        contact_id: project.contact_id,
+        title: project.title,
+        description: project.description || null,
+        invoice_url: project.invoice_url || null,
+        status: next,
+      })
+      await load()
+    } catch (e) { error = e.message }
   }
 
   async function addNote(e) {
@@ -131,9 +144,9 @@
 <div class="rise mb-6">
   <div class="mb-4 flex flex-wrap items-center gap-3">
     <button
-      onclick={() => push('/pipeline')}
+      onclick={() => push('/projects')}
       class="font-mono text-[12px] text-faint transition hover:text-accent"
-    >&lt; pipeline</button>
+    >&lt; projects</button>
     <span class="font-mono text-[12px] text-faint">/</span>
     <h2 class="font-mono text-[15px] font-bold text-ink">{project?.title ?? '…'}</h2>
     {#if project}
@@ -141,6 +154,10 @@
       <span class="font-mono text-[12px] text-muted">{contactsById[project.contact_id] ?? '—'}</span>
     {/if}
     <div class="ml-auto flex gap-2">
+      <button
+        onclick={toggleArchive}
+        class="h-8 rounded-sm border border-border-2 px-3 font-mono text-[12px] text-muted transition hover:border-accent-dim hover:text-ink"
+      >{project?.status === 'archived' ? 'restore' : 'archive'}</button>
       <button
         onclick={openEdit}
         class="h-8 rounded-sm border border-border-2 px-3 font-mono text-[12px] text-muted transition hover:border-accent-dim hover:text-ink"
