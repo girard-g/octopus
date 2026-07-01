@@ -102,14 +102,29 @@ prompts for scope.
 | Action | This occurrence only | This and following | Entire series |
 |--------|----------------------|--------------------|---------------|
 | **Delete** | `DELETE ?scope=one` | `DELETE ?scope=following` | `DELETE ?scope=series` |
-| **Edit** | existing single `PUT` (row diverges, keeps id) | `DELETE ?scope=following`, then regenerate the tail with new settings via `POST /series` (fresh `series_id`) | `DELETE ?scope=series`, then regenerate whole range via `POST /series` |
+| **Edit** | existing single `PUT` (row diverges, keeps id) | `PATCH /events/{id}/series?scope=following` | `PATCH /events/{id}/series?scope=series` |
 
-Series edits = **delete affected rows + regenerate**. This reuses the
-generation path and avoids per-row wall-clock arithmetic on the server. The
-regenerated tail gets a **new `series_id`** (Google-Calendar-style split), so a
-later "entire series" edit on the original series does not clobber it. Events
-are not referenced by any other entity, so regenerated ids dangle nothing —
-and re-patterning a range is exactly the intended semantics.
+**Range edits (following / series) apply a content update plus a time shift, not
+a regenerate.** We deliberately store no recurrence rule, so there is nothing to
+regenerate from; and the client only holds the visible month's rows, so it can't
+rebuild the series either. Instead the scoped edit:
+
+- Sets the content fields (`title`, `notes`, `project_id`, `contact_id`,
+  `all_day`) **absolutely** on every affected row.
+- Shifts each affected row's `starts_at` / `ends_at` by a **fixed interval** —
+  the delta by which the edited occurrence itself moved (computed on the client:
+  `new_start − original_start`). This preserves each occurrence's own date while
+  changing the time-of-day, and is timezone-free (an interval, not a wall-clock
+  recompute). One SQL `UPDATE`, no per-row loop, no `chrono-tz`.
+- For **following**, also stamps the affected rows with a **new `series_id`**
+  (Google-Calendar-style split), so a later "entire series" edit on the original
+  series does not clobber them.
+
+Scope of a range edit is content + time-of-day — **not** the recurrence pattern.
+Changing the weekday/frequency = delete the series and create a new one.
+
+DST caveat: a fixed-interval shift matches wall-clock for every occurrence except
+one landing inside a DST transition window (rare, single-user hub). Accepted.
 
 ## 5. Form (Calendar.svelte)
 
@@ -129,6 +144,8 @@ Add to the event create/edit form:
   rows.
 - Batch validation rejects an empty list, an oversize list (> 366), and a row
   that fails the title / time checks.
+- Scoped edit: `following` shifts times + sets content on the tail and gives it a
+  new `series_id` (earlier rows untouched); `series` shifts all rows.
 
 **JS** (`calendar.test.js`):
 - `generateOccurrences` for daily / weekly / monthly.
@@ -142,8 +159,9 @@ Add to the event create/edit form:
   can't render "repeats weekly on Mon", and changing the frequency/weekday of an
   existing series = delete + recreate, not an in-place rule edit. Acceptable for
   a solo ops hub.
-- **Series edits regenerate rows** (new ids) — the re-pattern semantics we want;
-  nothing references events, so no dangling refs.
+- **Range edits shift times by a fixed interval** rather than recomputing
+  wall-clock — one `UPDATE`, no `chrono-tz`; the only divergence is an occurrence
+  inside a DST-transition window.
 - **Monthly-on-31st skips** short months rather than clamping.
 - **Cap 366 rows/series** as a runaway guard.
 
