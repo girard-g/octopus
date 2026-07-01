@@ -72,3 +72,44 @@ export function fmtTime(iso) {
   const d = new Date(iso)
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
+
+/**
+ * generateOccurrences({start, end, freq, until}) → [{starts_at, ends_at}, …]
+ * start,end: local Date of the FIRST occurrence. until: local Date, inclusive
+ * (through that day's 23:59). freq: 'daily' | 'weekly' | 'monthly'.
+ * Returns UTC RFC3339 strings, preserving each occurrence's local wall-clock
+ * time (DST-safe via local Date arithmetic). Monthly infers the day-of-month
+ * from `start` and SKIPS months without that day (e.g. the 31st in February).
+ */
+export function generateOccurrences({ start, end, freq, until }) {
+  const durationMs = end.getTime() - start.getTime()
+  const cutoff = new Date(until.getFullYear(), until.getMonth(), until.getDate(), 23, 59, 59, 999)
+  const out = []
+  const push = (s) => out.push({
+    starts_at: s.toISOString(),
+    ends_at: new Date(s.getTime() + durationMs).toISOString(),
+  })
+
+  if (freq === 'daily' || freq === 'weekly') {
+    const step = freq === 'daily' ? 1 : 7
+    const cur = new Date(start)
+    while (cur <= cutoff) {
+      push(new Date(cur))
+      cur.setDate(cur.getDate() + step) // preserves local wall-clock across DST
+    }
+  } else if (freq === 'monthly') {
+    const day = start.getDate()
+    const hh = start.getHours()
+    const mm = start.getMinutes()
+    let y = start.getFullYear()
+    let m = start.getMonth()
+    while (new Date(y, m, 1) <= cutoff) {
+      const cand = new Date(y, m, day, hh, mm, 0, 0)
+      // cand.getMonth() !== m means the day rolled over → month lacks that day → skip
+      if (cand.getMonth() === m && cand <= cutoff) push(cand)
+      m += 1
+      if (m > 11) { m = 0; y += 1 }
+    }
+  }
+  return out
+}

@@ -1,6 +1,6 @@
 // frontend/src/lib/calendar.test.js
 import { describe, it, expect } from 'vitest'
-import { monthMatrix, monthRange, eventsByDay, fmtTime } from './calendar.js'
+import { monthMatrix, monthRange, eventsByDay, fmtTime, generateOccurrences } from './calendar.js'
 
 // June 2026: monthIndex=5, year=2026. June 1 2026 is a Monday → gridStart = June 1.
 // Helpers use the LOCAL timezone basis; tests build their fixtures from local
@@ -89,5 +89,92 @@ describe('fmtTime', () => {
     expect(fmtTime(new Date(2026, 5, 15, 9, 30).toISOString())).toBe('09:30')
     expect(fmtTime(new Date(2026, 5, 15, 0, 0).toISOString())).toBe('00:00')
     expect(fmtTime(new Date(2026, 5, 15, 23, 59).toISOString())).toBe('23:59')
+  })
+})
+
+describe('generateOccurrences', () => {
+  it('daily: one per day, until inclusive', () => {
+    const occ = generateOccurrences({
+      start: new Date(2026, 6, 6, 9, 0),
+      end: new Date(2026, 6, 6, 10, 0),
+      freq: 'daily',
+      until: new Date(2026, 6, 8),
+    })
+    expect(occ).toHaveLength(3) // Jul 6, 7, 8
+  })
+
+  it('until is inclusive at a single day', () => {
+    const occ = generateOccurrences({
+      start: new Date(2026, 6, 6, 9, 0),
+      end: new Date(2026, 6, 6, 10, 0),
+      freq: 'daily',
+      until: new Date(2026, 6, 6),
+    })
+    expect(occ).toHaveLength(1)
+  })
+
+  it('weekly: same weekday each week', () => {
+    const occ = generateOccurrences({
+      start: new Date(2026, 6, 6, 12, 0), // Mon Jul 6
+      end: new Date(2026, 6, 6, 13, 0),
+      freq: 'weekly',
+      until: new Date(2026, 6, 27), // Mon Jul 27
+    })
+    expect(occ).toHaveLength(4)
+    for (const o of occ) {
+      expect(new Date(o.starts_at).getDay()).toBe(1) // Monday
+    }
+  })
+
+  it('monthly: same day-of-month', () => {
+    const occ = generateOccurrences({
+      start: new Date(2026, 0, 15, 9, 0), // Jan 15
+      end: new Date(2026, 0, 15, 10, 0),
+      freq: 'monthly',
+      until: new Date(2026, 2, 31), // Mar 31
+    })
+    expect(occ).toHaveLength(3) // Jan, Feb, Mar
+    for (const o of occ) {
+      expect(new Date(o.starts_at).getDate()).toBe(15)
+    }
+  })
+
+  it('monthly on the 31st skips months without that day', () => {
+    const occ = generateOccurrences({
+      start: new Date(2026, 0, 31, 9, 0), // Jan 31
+      end: new Date(2026, 0, 31, 10, 0),
+      freq: 'monthly',
+      until: new Date(2026, 3, 30), // Apr 30
+    })
+    // Jan 31 yes; Feb (no 31) skip; Mar 31 yes; Apr (no 31) skip
+    expect(occ.map((o) => new Date(o.starts_at).getMonth())).toEqual([0, 2])
+  })
+
+  it('preserves the event duration on every occurrence', () => {
+    const occ = generateOccurrences({
+      start: new Date(2026, 6, 6, 9, 0),
+      end: new Date(2026, 6, 6, 10, 30), // 90 min
+      freq: 'daily',
+      until: new Date(2026, 6, 8),
+    })
+    for (const o of occ) {
+      const mins = (new Date(o.ends_at) - new Date(o.starts_at)) / 60000
+      expect(mins).toBe(90)
+    }
+  })
+
+  it('weekly keeps the same local hour across a DST boundary (portable)', () => {
+    // Spans the US spring-forward (Mar 8 2026). setDate preserves wall-clock,
+    // so every occurrence stays at the same local hour regardless of machine tz.
+    const occ = generateOccurrences({
+      start: new Date(2026, 2, 2, 12, 0), // Mar 2
+      end: new Date(2026, 2, 2, 13, 0),
+      freq: 'weekly',
+      until: new Date(2026, 3, 6), // Apr 6
+    })
+    for (const o of occ) {
+      expect(new Date(o.starts_at).getHours()).toBe(12)
+      expect(new Date(o.ends_at).getHours()).toBe(13)
+    }
   })
 })
