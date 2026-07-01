@@ -29,6 +29,8 @@
   let newTitle  = $state('')
   let newNote   = $state('')
   let noteBusy  = $state(false)
+  let editingTask = $state(null)   // a shallow copy of the task being edited
+  let newChecklistItem = $state('')
 
   const contactsById = $derived(Object.fromEntries(contacts.map((c) => [c.id, c.name])))
 
@@ -79,6 +81,40 @@
   async function deleteTask(taskId) {
     try { await api.del('/api/tasks/' + taskId); await load() }
     catch (e) { error = e.message }
+  }
+
+  const PRIORITY_DOT = { low: 'bg-st-done', medium: 'bg-st-proposal', high: 'bg-st-lost' }
+
+  function openTask(t) {
+    editingTask = { ...t, checklist: (t.checklist ?? []).map((c) => ({ ...c })) }
+  }
+  function addChecklistItem() {
+    const title = newChecklistItem.trim()
+    if (!title) return
+    editingTask.checklist = [...editingTask.checklist, { title, done: false }]
+    newChecklistItem = ''
+  }
+  function removeChecklistItem(i) {
+    editingTask.checklist = editingTask.checklist.filter((_, idx) => idx !== i)
+  }
+  async function saveTask(e) {
+    e.preventDefault()
+    const t = editingTask
+    try {
+      await api.put('/api/tasks/' + t.id, {
+        title: t.title,
+        status: t.status,
+        project_id: id,
+        due_on: t.due_on || null,
+        priority: t.priority || null,
+        size: t.size || null,
+        description: t.description || null,
+        checklist: t.checklist,
+        position: t.position ?? 0,
+      })
+      editingTask = null
+      await load()
+    } catch (err) { error = err.message }
   }
 
   function openEdit() { editing = { ...project } }
@@ -188,14 +224,23 @@
           <div class="group relative overflow-hidden rounded-sm border border-border bg-surface transition-all duration-100 hover:border-accent-dim hover:shadow-[0_0_14px_rgba(62,245,196,0.12)]">
             <span class="absolute inset-y-0 left-0 w-[3px] {TASK_STYLE[s].bar}"></span>
             <div class="flex items-start justify-between py-2.5 pl-3.5 pr-2">
-              <div class="min-w-0 flex-1">
-                <div class="font-mono text-[13px] font-medium leading-snug text-ink">{t.title}</div>
-                {#if t.due_on}
-                  <div class="mt-0.5 font-mono text-[11px] text-faint">{t.due_on}</div>
-                {/if}
-              </div>
               <button
-                onclick={() => deleteTask(t.id)}
+                type="button"
+                onclick={() => openTask(t)}
+                class="min-w-0 flex-1 text-left"
+              >
+                <div class="flex items-center gap-1.5">
+                  {#if t.priority}<span class="h-1.5 w-1.5 shrink-0 rounded-full {PRIORITY_DOT[t.priority]}"></span>{/if}
+                  <span class="truncate font-mono text-[13px] font-medium leading-snug text-ink">{t.title}</span>
+                </div>
+                <div class="mt-0.5 flex flex-wrap items-center gap-2 font-mono text-[11px] text-faint">
+                  {#if t.due_on}<span>{t.due_on}</span>{/if}
+                  {#if t.size}<span class="uppercase">[{t.size}]</span>{/if}
+                  {#if t.checklist?.length}<span>{t.checklist.filter((c) => c.done).length}/{t.checklist.length}</span>{/if}
+                </div>
+              </button>
+              <button
+                onclick={(e) => { e.stopPropagation(); deleteTask(t.id) }}
                 aria-label="Delete task"
                 class="ml-2 shrink-0 font-mono text-[16px] leading-none text-faint transition hover:text-st-lost"
               >×</button>
@@ -284,6 +329,64 @@
       <div>
         <p class="label mb-1.5">Invoice URL</p>
         <input bind:value={editing.invoice_url} placeholder="Indy invoice URL" class={FIELD} />
+      </div>
+      <button class="mt-1 h-9 w-full rounded-sm bg-accent font-mono text-[13px] font-bold text-on-accent transition glow-soft hover:brightness-110">Save</button>
+    </form>
+  </Modal>
+{/if}
+
+{#if editingTask}
+  <Modal title="Edit task" onclose={() => (editingTask = null)}>
+    <form onsubmit={saveTask} class="flex flex-col gap-3">
+      <div>
+        <p class="label mb-1.5">Title</p>
+        <input bind:value={editingTask.title} required class={FIELD} />
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <p class="label mb-1.5">Priority</p>
+          <select bind:value={editingTask.priority} class={FIELD}>
+            <option value={null}>— none —</option>
+            <option value="low">low</option>
+            <option value="medium">medium</option>
+            <option value="high">high</option>
+          </select>
+        </div>
+        <div>
+          <p class="label mb-1.5">Size</p>
+          <select bind:value={editingTask.size} class={FIELD}>
+            <option value={null}>— none —</option>
+            <option value="xs">XS</option>
+            <option value="s">S</option>
+            <option value="m">M</option>
+            <option value="l">L</option>
+            <option value="xl">XL</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <p class="label mb-1.5">Due date</p>
+        <input type="date" bind:value={editingTask.due_on} class={FIELD} />
+      </div>
+      <div>
+        <p class="label mb-1.5">Description</p>
+        <textarea bind:value={editingTask.description} rows="3" class="{FIELD} resize-none"></textarea>
+      </div>
+      <div>
+        <p class="label mb-1.5">Checklist</p>
+        <div class="flex flex-col gap-1.5">
+          {#each editingTask.checklist as item, i (i)}
+            <div class="flex items-center gap-2">
+              <input type="checkbox" bind:checked={item.done} class="h-3.5 w-3.5 shrink-0 rounded-sm accent-accent" />
+              <span class="min-w-0 flex-1 truncate font-mono text-[13px] text-ink" class:line-through={item.done} class:text-faint={item.done}>{item.title}</span>
+              <button type="button" onclick={() => removeChecklistItem(i)} aria-label="Remove item" class="shrink-0 font-mono text-[15px] leading-none text-faint transition hover:text-st-lost">×</button>
+            </div>
+          {/each}
+          <div class="flex gap-2">
+            <input bind:value={newChecklistItem} onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addChecklistItem() } }} placeholder="add item…" class="{FIELD} flex-1" />
+            <button type="button" onclick={addChecklistItem} class="h-[38px] shrink-0 rounded-sm border border-border-2 px-3 font-mono text-[13px] text-muted transition hover:border-accent-dim hover:text-ink">+</button>
+          </div>
+        </div>
       </div>
       <button class="mt-1 h-9 w-full rounded-sm bg-accent font-mono text-[13px] font-bold text-on-accent transition glow-soft hover:brightness-110">Save</button>
     </form>
