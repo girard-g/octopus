@@ -116,3 +116,23 @@ async fn project_update_rejects_bad_contact_id(pool: sqlx::PgPool) {
     .await;
     assert_eq!(status, axum::http::StatusCode::BAD_REQUEST);
 }
+
+#[sqlx::test]
+async fn project_list_reports_health(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+
+    let (_, p) = send(&app, json_req("POST", "/api/projects", json!({"title":"P"})).with_cookie(&cookie)).await;
+    let pid = p["id"].as_str().unwrap();
+    send(&app, json_req("POST", "/api/tasks", json!({"title":"done","project_id":pid,"status":"done"})).with_cookie(&cookie)).await;
+    send(&app, json_req("POST", "/api/tasks", json!({"title":"late","project_id":pid,"due_on":"2020-01-01"})).with_cookie(&cookie)).await;
+
+    let (_, list) = send(&app, json_req("GET", "/api/projects", json!(null)).with_cookie(&cookie)).await;
+    let row = &list[0];
+    assert_eq!(row["task_count"], 2);
+    assert_eq!(row["done_count"], 1);
+    assert_eq!(row["open_count"], 1);
+    assert_eq!(row["overdue_count"], 1);
+    assert_eq!(row["next_due"], "2020-01-01");
+}

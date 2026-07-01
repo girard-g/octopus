@@ -31,8 +31,13 @@ pub async fn list(
         Some(st) => {
             check_status(&st)?;
             sqlx::query_as::<_, Project>(
-                "select p.*, count(t.id) as task_count from project p \
-                 left join task t on t.project_id = p.id \
+                "select p.*, \
+                   count(t.id) as task_count, \
+                   count(t.id) filter (where t.status = 'done') as done_count, \
+                   count(t.id) filter (where t.status <> 'done') as open_count, \
+                   count(t.id) filter (where t.status <> 'done' and t.due_on < current_date) as overdue_count, \
+                   min(t.due_on) filter (where t.status <> 'done') as next_due \
+                 from project p left join task t on t.project_id = p.id \
                  where p.status = $1 group by p.id order by p.created_at",
             )
             .bind(st)
@@ -41,8 +46,13 @@ pub async fn list(
         }
         None => {
             sqlx::query_as::<_, Project>(
-                "select p.*, count(t.id) as task_count from project p \
-                 left join task t on t.project_id = p.id \
+                "select p.*, \
+                   count(t.id) as task_count, \
+                   count(t.id) filter (where t.status = 'done') as done_count, \
+                   count(t.id) filter (where t.status <> 'done') as open_count, \
+                   count(t.id) filter (where t.status <> 'done' and t.due_on < current_date) as overdue_count, \
+                   min(t.due_on) filter (where t.status <> 'done') as next_due \
+                 from project p left join task t on t.project_id = p.id \
                  group by p.id order by p.created_at",
             )
             .fetch_all(&s.pool)
