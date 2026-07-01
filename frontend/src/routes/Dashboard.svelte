@@ -149,8 +149,8 @@
     {#each upcomingEvents as ev}
       <li class="flex items-center gap-3 border-b border-border px-4 py-2.5 last:border-0">
         <span class="truncate font-mono text-[13px] text-ink">{ev.title}</span>
-        {#if ev.contact_id || ev.project_id}
-          <span class="shrink-0 font-mono text-[11px] text-faint">{ev.contact_id ? (contactsById[ev.contact_id] ?? '') : (projectsById[ev.project_id] ?? '')}</span>
+        {#if ev.contact_ids?.length || ev.project_id}
+          <span class="shrink-0 font-mono text-[11px] text-faint">{ev.contact_ids?.length ? ev.contact_ids.map((id) => contactsById[id] ?? '').filter(Boolean).join(', ') : (projectsById[ev.project_id] ?? '')}</span>
         {/if}
         <span class="ml-auto shrink-0 font-mono text-[11px] tabular-nums text-faint">{fmtEvent(ev)}</span>
       </li>

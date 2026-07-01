@@ -43,7 +43,7 @@ async fn set_event_contacts(
         .execute(&mut *conn)
         .await?;
     for cid in contact_ids {
-        sqlx::query("insert into event_contact (event_id, contact_id) values ($1, $2)")
+        sqlx::query("insert into event_contact (event_id, contact_id) values ($1, $2) on conflict (event_id, contact_id) do nothing")
             .bind(event_id)
             .bind(cid)
             .execute(&mut *conn)

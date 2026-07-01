@@ -529,6 +529,22 @@ async fn scoped_series_edit_replaces_contacts_on_affected(pool: sqlx::PgPool) {
 }
 
 #[sqlx::test]
+async fn duplicate_contact_ids_are_deduplicated(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+    let a = make_contact(&app, &cookie, "Alice").await;
+    // same id twice — must succeed (201) and return exactly one contact_id
+    let (status, e) = send(&app, json_req("POST", "/api/events",
+        json!({"title":"Dup","starts_at":"2026-07-01T10:00:00Z","ends_at":"2026-07-01T11:00:00Z","contact_ids":[a,a]})).with_cookie(&cookie)).await;
+    assert_eq!(status, StatusCode::CREATED);
+    // the junction deduplicates; re-fetch to confirm the stored set
+    let id = e["id"].as_str().unwrap().to_string();
+    let (_, got) = send(&app, json_req("GET", &format!("/api/events/{id}"), json!(null)).with_cookie(&cookie)).await;
+    assert_eq!(got["contact_ids"].as_array().unwrap().len(), 1);
+}
+
+#[sqlx::test]
 async fn create_event_bad_contact_id_is_400(pool: sqlx::PgPool) {
     std::env::set_var("APP_PASSWORD", "secret");
     let app = test_app(pool);

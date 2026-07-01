@@ -310,7 +310,7 @@
       <p class="px-4 py-8 text-center font-mono text-[13px] text-faint">// no events</p>
     {:else}
       {#each agenda.allDay as ev}
-        <button onclick={(e) => openEdit(ev, e)} class="flex w-full items-center gap-3 border-b border-border/50 px-4 py-2.5 text-left transition hover:bg-surface-2">
+        <button onclick={(e) => openEdit(ev, e)} class="flex w-full items-center gap-3 border-b border-border/50 px-4 py-2.5 text-left transition last:border-0 hover:bg-surface-2">
           <span class="w-14 font-mono text-[11px] text-faint">all-day</span>
           <span class="font-mono text-[13px] text-ink">{ev.title}</span>
           {#if ev.contact_ids?.length}<span class="font-mono text-[11px] text-accent">{ev.contact_ids.map(contactName).map((n) => '@' + n).join(' ')}</span>{/if}

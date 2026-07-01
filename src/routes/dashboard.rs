@@ -46,7 +46,9 @@ pub async fn get(_: AuthUser, State(s): State<AppState>) -> Result<Json<Dashboar
         .await?;
 
     let upcoming_events = sqlx::query_as::<_, Event>(
-        "select * from event where ends_at >= now() order by starts_at limit 5",
+        "select e.*, coalesce(array_agg(ec.contact_id) filter (where ec.contact_id is not null), '{}') as contact_ids \
+         from event e left join event_contact ec on ec.event_id = e.id \
+         where e.ends_at >= now() group by e.id order by e.starts_at limit 5",
     )
     .fetch_all(&s.pool)
     .await?;
