@@ -1,6 +1,6 @@
 // frontend/src/lib/calendar.test.js
 import { describe, it, expect } from 'vitest'
-import { monthMatrix, monthRange, eventsByDay, fmtTime, generateOccurrences } from './calendar.js'
+import { monthMatrix, monthRange, eventsByDay, fmtTime, generateOccurrences, localDateTimeToUtc } from './calendar.js'
 
 // June 2026: monthIndex=5, year=2026. June 1 2026 is a Monday → gridStart = June 1.
 // Helpers use the LOCAL timezone basis; tests build their fixtures from local
@@ -176,5 +176,17 @@ describe('generateOccurrences', () => {
       expect(new Date(o.starts_at).getHours()).toBe(12)
       expect(new Date(o.ends_at).getHours()).toBe(13)
     }
+  })
+})
+
+describe('localDateTimeToUtc', () => {
+  it('composes a local date + time into a UTC instant that round-trips to the same local time', () => {
+    const iso = localDateTimeToUtc('2026-07-01', '14:30')
+    // The stored instant, read back in local time, must still be 14:30 — NOT 00:00.
+    expect(fmtTime(iso)).toBe('14:30')
+  })
+  it('a non-midnight time never collapses to 00:00', () => {
+    expect(fmtTime(localDateTimeToUtc('2026-07-01', '09:00'))).toBe('09:00')
+    expect(fmtTime(localDateTimeToUtc('2026-12-31', '23:15'))).toBe('23:15')
   })
 })

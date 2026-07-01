@@ -1,7 +1,7 @@
 <script>
   import { api } from '../lib/api.js'
   import Modal from '../lib/components/Modal.svelte'
-  import { monthMatrix, monthRange, eventsByDay, fmtTime, toISODate, generateOccurrences } from '../lib/calendar.js'
+  import { monthMatrix, monthRange, eventsByDay, fmtTime, toISODate, generateOccurrences, localDateTimeToUtc } from '../lib/calendar.js'
 
   const FIELD = 'w-full rounded-sm border border-border bg-surface-2 px-2.5 py-2 font-mono text-[13px] text-ink placeholder:text-faint focus:border-accent focus:shadow-[0_0_0_3px_rgba(62,245,196,0.14)] focus:outline-none'
   const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -59,8 +59,9 @@
     return {
       title: '',
       all_day: false,
-      starts_at_local: `${iso}T09:00`,
-      ends_at_local: `${iso}T10:00`,
+      date: iso,
+      start_time: '09:00',
+      end_time: '10:00',
       starts_date: iso,
       ends_date: iso,
       project_id: '',
@@ -77,13 +78,9 @@
 
   function openEdit(ev, e) {
     e.stopPropagation()
-    // Timed events: render the UTC instant in LOCAL time for datetime-local
-    // (save converts back via new Date(local).toISOString(), so it round-trips).
     const pad = (n) => String(n).padStart(2, '0')
-    const toLocal = (iso) => {
-      const d = new Date(iso)
-      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-    }
+    const localDate = (iso) => { const d = new Date(iso); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` }
+    const localTime = (iso) => { const d = new Date(iso); return `${pad(d.getHours())}:${pad(d.getMinutes())}` }
     // All-day dates are stored as the UTC date (00:00:00Z / 23:59:59Z); keep the
     // UTC slice so the date inputs round-trip to the originally-picked day.
     const toDate = (iso) => iso.slice(0, 10)
@@ -93,8 +90,9 @@
         id: ev.id,
         title: ev.title,
         all_day: ev.all_day,
-        starts_at_local: toLocal(ev.starts_at),
-        ends_at_local: toLocal(ev.ends_at),
+        date: localDate(ev.starts_at),
+        start_time: localTime(ev.starts_at),
+        end_time: localTime(ev.ends_at),
         starts_date: toDate(ev.starts_at),
         ends_date: toDate(ev.ends_at),
         project_id: ev.project_id ?? '',
@@ -113,8 +111,8 @@
       starts_at = `${ev.starts_date}T00:00:00Z`
       ends_at = `${ev.ends_date}T23:59:59Z`
     } else {
-      starts_at = new Date(ev.starts_at_local).toISOString()
-      ends_at = new Date(ev.ends_at_local).toISOString()
+      starts_at = localDateTimeToUtc(ev.date, ev.start_time)
+      ends_at = localDateTimeToUtc(ev.date, ev.end_time)
     }
     return {
       title: ev.title.trim(),
@@ -302,14 +300,18 @@
           </div>
         </div>
       {:else}
-        <div class="grid grid-cols-2 gap-2">
+        <div class="grid grid-cols-3 gap-2">
+          <div class:opacity-50={modal.ev.series_id && modal.ev.scope !== 'one'}>
+            <p class="label mb-1.5">Date</p>
+            <input type="date" bind:value={modal.ev.date} required class={FIELD} disabled={modal.ev.series_id && modal.ev.scope !== 'one'} />
+          </div>
           <div>
             <p class="label mb-1.5">Start</p>
-            <input type="datetime-local" bind:value={modal.ev.starts_at_local} required class={FIELD} />
+            <input type="time" bind:value={modal.ev.start_time} required class={FIELD} />
           </div>
           <div class:opacity-50={modal.ev.series_id && modal.ev.scope !== 'one'}>
             <p class="label mb-1.5">End</p>
-            <input type="datetime-local" bind:value={modal.ev.ends_at_local} required class={FIELD} disabled={modal.ev.series_id && modal.ev.scope !== 'one'} />
+            <input type="time" bind:value={modal.ev.end_time} required class={FIELD} disabled={modal.ev.series_id && modal.ev.scope !== 'one'} />
           </div>
         </div>
       {/if}
@@ -359,7 +361,7 @@
             <option value="series">Entire series</option>
           </select>
           {#if modal.ev.scope !== 'one'}
-            <p class="font-mono text-[11px] text-faint mt-1.5">Range edits change title/notes and shift the start time. End time and all-day are locked — use "This event only" to change them.</p>
+            <p class="font-mono text-[11px] text-faint mt-1.5">Range edits change title/notes and shift the start time. Date, end time and all-day are locked — use "This event only" to change them.</p>
           {/if}
         </div>
       {/if}

@@ -113,3 +113,14 @@ export function generateOccurrences({ start, end, freq, until }) {
   }
   return out
 }
+
+/**
+ * localDateTimeToUtc(dateStr, timeStr) → RFC3339 UTC string.
+ * dateStr 'YYYY-MM-DD', timeStr 'HH:MM' — interpreted in LOCAL time (a datetime
+ * string without a timezone is local per the JS spec), so the wall-clock time is
+ * preserved. Splitting date and time into separate fields is what prevents the
+ * combined datetime-local widget from silently zeroing the time to 00:00.
+ */
+export function localDateTimeToUtc(dateStr, timeStr) {
+  return new Date(`${dateStr}T${timeStr}`).toISOString()
+}
