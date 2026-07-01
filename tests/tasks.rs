@@ -68,3 +68,76 @@ async fn task_update_rejects_bad_project_id(pool: sqlx::PgPool) {
     .await;
     assert_eq!(status, axum::http::StatusCode::BAD_REQUEST);
 }
+
+#[sqlx::test]
+async fn task_roundtrips_new_fields(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+
+    let (status, t) = send(
+        &app,
+        json_req("POST", "/api/tasks", json!({
+            "title": "Ship it",
+            "priority": "high",
+            "size": "m",
+            "description": "the big one",
+            "checklist": [{"title":"a","done":false},{"title":"b","done":true}],
+            "position": 2
+        })).with_cookie(&cookie),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED);
+    assert_eq!(t["priority"], "high");
+    assert_eq!(t["size"], "m");
+    assert_eq!(t["description"], "the big one");
+    assert_eq!(t["position"], 2);
+    assert_eq!(t["checklist"].as_array().unwrap().len(), 2);
+    assert_eq!(t["checklist"][1]["done"], true);
+}
+
+// Guards the drag-wipe trap: a full-object PUT that changes status must NOT
+// drop priority/checklist. (The board's drag handler sends the full object.)
+#[sqlx::test]
+async fn task_move_preserves_fields(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+
+    let (_, t) = send(
+        &app,
+        json_req("POST", "/api/tasks", json!({
+            "title": "X", "priority": "low",
+            "checklist": [{"title":"step","done":false}]
+        })).with_cookie(&cookie),
+    )
+    .await;
+    let id = t["id"].as_str().unwrap().to_string();
+
+    // Full-object PUT with status flipped to doing (as the drag handler sends it).
+    let (status, upd) = send(
+        &app,
+        json_req("PUT", &format!("/api/tasks/{id}"), json!({
+            "title": "X", "status": "doing", "priority": "low",
+            "checklist": [{"title":"step","done":false}], "position": 0
+        })).with_cookie(&cookie),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(upd["status"], "doing");
+    assert_eq!(upd["priority"], "low");
+    assert_eq!(upd["checklist"].as_array().unwrap().len(), 1);
+}
+
+#[sqlx::test]
+async fn task_rejects_bad_priority(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+    let (status, _) = send(
+        &app,
+        json_req("POST", "/api/tasks", json!({"title":"X","priority":"urgent"})).with_cookie(&cookie),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+}

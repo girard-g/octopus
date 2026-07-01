@@ -7,7 +7,7 @@ use uuid::Uuid;
 use crate::app::AppState;
 use crate::auth::AuthUser;
 use crate::error::AppError;
-use crate::models::{Task, TaskInput, TASK_STATUSES};
+use crate::models::{Task, TaskInput, PRIORITY_LEVELS, TASK_SIZES, TASK_STATUSES};
 
 #[derive(Deserialize)]
 pub struct ListQuery {
@@ -22,6 +22,15 @@ fn check_status(status: &str) -> Result<(), AppError> {
     }
 }
 
+fn check_optional<const N: usize>(v: &Option<String>, allowed: [&str; N], what: &str) -> Result<(), AppError> {
+    match v {
+        Some(s) if !allowed.contains(&s.as_str()) => {
+            Err(AppError::BadRequest(format!("invalid task {what}")))
+        }
+        _ => Ok(()),
+    }
+}
+
 pub async fn list(
     _: AuthUser,
     State(s): State<AppState>,
@@ -29,12 +38,12 @@ pub async fn list(
 ) -> Result<Json<Vec<Task>>, AppError> {
     let rows = match q.project_id {
         Some(pid) => sqlx::query_as::<_, Task>(
-            "select * from task where project_id = $1 order by due_on nulls last, created_at",
+            "select * from task where project_id = $1 order by position, created_at",
         )
         .bind(pid)
         .fetch_all(&s.pool)
         .await?,
-        None => sqlx::query_as::<_, Task>("select * from task order by due_on nulls last, created_at")
+        None => sqlx::query_as::<_, Task>("select * from task order by position, created_at")
             .fetch_all(&s.pool)
             .await?,
     };
@@ -51,13 +60,21 @@ pub async fn create(
     }
     let status = input.status.clone().unwrap_or_else(|| "todo".to_string());
     check_status(&status)?;
+    check_optional(&input.priority, PRIORITY_LEVELS, "priority")?;
+    check_optional(&input.size, TASK_SIZES, "size")?;
     let row = sqlx::query_as::<_, Task>(
-        "insert into task (project_id, title, status, due_on) values ($1,$2,$3,$4) returning *",
+        "insert into task (project_id, title, status, due_on, priority, size, description, checklist, position) \
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9) returning *",
     )
     .bind(input.project_id)
     .bind(&input.title)
     .bind(&status)
     .bind(input.due_on)
+    .bind(&input.priority)
+    .bind(&input.size)
+    .bind(&input.description)
+    .bind(sqlx::types::Json(&input.checklist))
+    .bind(input.position.unwrap_or(0))
     .fetch_one(&s.pool)
     .await
     .map_err(|e| match e {
@@ -80,14 +97,22 @@ pub async fn update(
     }
     let status = input.status.clone().unwrap_or_else(|| "todo".to_string());
     check_status(&status)?;
+    check_optional(&input.priority, PRIORITY_LEVELS, "priority")?;
+    check_optional(&input.size, TASK_SIZES, "size")?;
     let row = sqlx::query_as::<_, Task>(
-        "update task set project_id=$2, title=$3, status=$4, due_on=$5 where id=$1 returning *",
+        "update task set project_id=$2, title=$3, status=$4, due_on=$5, priority=$6, \
+         size=$7, description=$8, checklist=$9, position=$10 where id=$1 returning *",
     )
     .bind(id)
     .bind(input.project_id)
     .bind(&input.title)
     .bind(&status)
     .bind(input.due_on)
+    .bind(&input.priority)
+    .bind(&input.size)
+    .bind(&input.description)
+    .bind(sqlx::types::Json(&input.checklist))
+    .bind(input.position.unwrap_or(0))
     .fetch_optional(&s.pool)
     .await
     .map_err(|e| match e {
