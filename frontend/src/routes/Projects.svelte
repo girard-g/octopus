@@ -30,6 +30,7 @@
     try {
       await api.post('/api/projects', { contact_id: creating.contact_id, title: creating.title.trim() })
       creating = null
+      filter = 'active'   // new projects default to active — show it
       await load()
     } catch (err) { error = err.message }
   }
