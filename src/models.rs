@@ -162,3 +162,23 @@ pub struct NoteInput {
     pub contact_id: Option<Uuid>,
     pub project_id: Option<Uuid>,
 }
+
+#[derive(Debug, Serialize, sqlx::FromRow)]
+pub struct Link {
+    pub id: Uuid,
+    pub url: String,
+    pub title: String,
+    pub description: Option<String>,
+    pub category: Option<String>,
+    pub tags: Vec<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LinkInput {
+    pub url: String,
+    pub title: Option<String>,
+    pub description: Option<String>,
+    pub category: Option<String>,
+    pub tags: Option<Vec<String>>,
+}
