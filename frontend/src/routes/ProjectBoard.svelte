@@ -190,8 +190,9 @@
 </script>
 
 <!-- ponytail: fixed board height = shell header (h-13 = 52px) + route padding (py-7 = 28+28).
-     Retune 108px if App.svelte's header height or content padding changes. -->
-<section class="rise flex h-[calc(100vh-108px)] flex-col">
+     Retune 108px if App.svelte's header height or content padding changes.
+     Mobile (<md) uses natural height + per-scroller heights instead — viewport chrome shifts too much to pin. -->
+<section class="rise flex h-auto flex-col md:h-[calc(100vh-108px)]">
   <!-- Header -->
   <header class="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
     <button
@@ -242,10 +243,10 @@
   {/if}
 
   <!-- Board + optional notes rail -->
-  <div class="flex min-h-0 flex-1 gap-4">
-    <div class="flex min-h-0 flex-1 gap-3 overflow-x-auto pb-1">
+  <div class="flex min-h-0 flex-1 flex-col gap-4 md:flex-row">
+    <div class="flex h-[65dvh] min-h-0 gap-3 overflow-x-auto pb-1 snap-x snap-mandatory md:h-auto md:flex-1 md:snap-none">
       {#each TASK_STATUSES as s}
-        <div class="flex min-h-0 w-[280px] min-w-[240px] flex-1 flex-col overflow-hidden rounded-md border border-border/60 bg-bg-2/40">
+        <div class="flex min-h-0 w-[85vw] shrink-0 snap-center flex-col overflow-hidden rounded-md border border-border/60 bg-bg-2/40 md:w-[280px] md:min-w-[240px] md:shrink md:flex-1 md:snap-align-none">
           <!-- status accent strip -->
           <span class="h-[3px] w-full {TASK_STYLE[s].bar}"></span>
           <!-- column header -->
@@ -283,7 +284,7 @@
                 <button
                   onclick={(e) => { e.stopPropagation(); deleteTask(t.id) }}
                   aria-label="Delete task"
-                  class="shrink-0 font-mono text-[16px] leading-none text-faint opacity-0 transition hover:text-st-lost focus:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100"
+                  class="shrink-0 font-mono text-[16px] leading-none text-faint opacity-100 transition hover:text-st-lost focus:opacity-100 md:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
                 >×</button>
               </div>
             {/each}
@@ -314,7 +315,7 @@
     </div>
 
     {#if notesOpen}
-      <aside class="flex w-[300px] shrink-0 flex-col overflow-hidden rounded-md border border-border/60 bg-bg-2/40">
+      <aside class="flex max-h-[50dvh] w-full shrink-0 flex-col overflow-hidden rounded-md border border-border/60 bg-bg-2/40 md:max-h-none md:w-[300px]">
         <div class="flex shrink-0 items-center justify-between border-b border-border/50 px-3 py-2">
           <span class="font-mono text-[11px] font-bold uppercase tracking-wider text-muted"><span class="text-accent glow-text">&gt;</span> notes</span>
           <button onclick={() => (notesOpen = false)} aria-label="Close notes" class="font-mono text-[15px] leading-none text-faint transition hover:text-ink">×</button>
