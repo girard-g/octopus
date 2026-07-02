@@ -62,7 +62,7 @@
 
 {#if error}<p class="rise mb-4 rounded-sm border border-st-lost/30 bg-st-lost/10 px-3 py-2 font-mono text-[12px] text-st-lost">[ ERR ] {error}</p>{/if}
 
-<div class="rise grid grid-cols-2 gap-3 md:grid-cols-3" style="animation-delay:40ms">
+<div class="rise grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3" style="animation-delay:40ms">
   {#each projects as p (p.id)}
     <button
       onclick={() => push('/projects/' + p.id)}
