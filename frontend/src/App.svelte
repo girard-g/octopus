@@ -9,6 +9,7 @@
   import Projects from './routes/Projects.svelte'
   import Calendar from './routes/Calendar.svelte'
   import Notes from './routes/Notes.svelte'
+  import Links from './routes/Links.svelte'
   import ProjectBoard from './routes/ProjectBoard.svelte'
   import ContactDetail from './routes/ContactDetail.svelte'
   import { getAuthed, markLoggedIn } from './lib/session.svelte.js'
@@ -22,6 +23,7 @@
     '/projects': Projects,
     '/calendar': Calendar,
     '/notes': Notes,
+    '/links': Links,
     '/projects/:id': ProjectBoard,
     '/login': Login,
   }
@@ -30,7 +32,7 @@
   // even though the visible title is lowercased for the terminal look).
   const TITLES = {
     '/': 'Dashboard', '/contacts': 'Contacts', '/projects': 'Projects',
-    '/calendar': 'Calendar', '/notes': 'Notes',
+    '/calendar': 'Calendar', '/notes': 'Notes', '/links': 'Links',
   }
   const title = $derived(
     router.location.startsWith('/projects/') ? 'project' :

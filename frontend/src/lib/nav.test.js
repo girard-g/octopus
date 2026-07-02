@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { NAV_ITEMS, isActive } from './nav.js'
 
 describe('NAV_ITEMS', () => {
-  it('has the five routes with href + short label', () => {
-    expect(NAV_ITEMS.map((i) => i.href)).toEqual(['/', '/contacts', '/projects', '/calendar', '/notes'])
+  it('has the six routes with href + short label', () => {
+    expect(NAV_ITEMS.map((i) => i.href)).toEqual(['/', '/contacts', '/projects', '/calendar', '/notes', '/links'])
     for (const i of NAV_ITEMS) {
       expect(typeof i.short).toBe('string')
       expect(i.short.length).toBeGreaterThan(0)

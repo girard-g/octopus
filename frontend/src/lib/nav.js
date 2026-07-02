@@ -11,6 +11,7 @@ export const NAV_ITEMS = [
   { href: '/projects', n: '03', label: 'Projects', short: 'proj' },
   { href: '/calendar', n: '04', label: 'Calendar', short: 'cal' },
   { href: '/notes', n: '05', label: 'Notes', short: 'note' },
+  { href: '/links', n: '06', label: 'Links', short: 'link' },
 ]
 
 // Active when the location equals the href, or (for non-root sections) is a
