@@ -244,7 +244,9 @@
 
   <!-- Board + optional notes rail -->
   <div class="flex min-h-0 flex-1 flex-col gap-4 md:flex-row">
-    <div class="flex h-[65dvh] min-h-0 gap-3 overflow-x-auto pb-1 snap-x snap-mandatory md:h-auto md:flex-1 md:snap-none">
+    <!-- snap-proximity (not -mandatory): keeps the peek/swipe feel but doesn't fight
+         svelte-dnd-action's auto-scroll when dragging a card toward the next column. -->
+    <div class="flex h-[65dvh] min-h-0 gap-3 overflow-x-auto pb-1 snap-x snap-proximity md:h-auto md:flex-1 md:snap-none">
       {#each TASK_STATUSES as s}
         <div class="flex min-h-0 w-[85vw] shrink-0 snap-center flex-col overflow-hidden rounded-md border border-border/60 bg-bg-2/40 md:w-[280px] md:min-w-[240px] md:shrink md:flex-1 md:snap-align-none">
           <!-- status accent strip -->
