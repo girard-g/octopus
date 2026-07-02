@@ -79,3 +79,50 @@ async fn link_rejects_non_http_url(pool: sqlx::PgPool) {
     ).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
 }
+
+#[sqlx::test]
+async fn link_favorite_defaults_false_and_toggles(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+
+    // create without favorite → false
+    let (_, l) = send(
+        &app,
+        json_req("POST", "/api/links", json!({"url": "https://a.com"})).with_cookie(&cookie),
+    ).await;
+    assert_eq!(l["favorite"], false);
+    let id = l["id"].as_str().unwrap().to_string();
+    let tags: Vec<String> = vec![];
+
+    // PUT favorite=true (full-object replace, like the frontend toggle)
+    let (status, upd) = send(
+        &app,
+        json_req("PUT", &format!("/api/links/{id}"), json!({
+            "url": "https://a.com", "title": "a.com", "tags": tags, "favorite": true
+        })).with_cookie(&cookie),
+    ).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(upd["favorite"], true);
+
+    // PUT favorite=false clears it
+    let (_, upd2) = send(
+        &app,
+        json_req("PUT", &format!("/api/links/{id}"), json!({
+            "url": "https://a.com", "title": "a.com", "favorite": false
+        })).with_cookie(&cookie),
+    ).await;
+    assert_eq!(upd2["favorite"], false);
+}
+
+#[sqlx::test]
+async fn link_create_with_favorite_true(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+    let (_, l) = send(
+        &app,
+        json_req("POST", "/api/links", json!({"url": "https://b.com", "favorite": true})).with_cookie(&cookie),
+    ).await;
+    assert_eq!(l["favorite"], true);
+}

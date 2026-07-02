@@ -71,3 +71,19 @@ async fn dashboard_due_tasks_have_project_title(pool: sqlx::PgPool) {
     let due = &dash["due_tasks"];
     assert_eq!(due[0]["project_title"], "Acme");
 }
+
+#[sqlx::test]
+async fn dashboard_favorite_links_only(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+
+    send(&app, json_req("POST", "/api/links", json!({"url": "https://fav.com", "title": "Fav", "favorite": true})).with_cookie(&cookie)).await;
+    send(&app, json_req("POST", "/api/links", json!({"url": "https://plain.com", "title": "Plain"})).with_cookie(&cookie)).await;
+
+    let (status, d) = send(&app, json_req("GET", "/api/dashboard", json!(null)).with_cookie(&cookie)).await;
+    assert_eq!(status, StatusCode::OK);
+    let favs = d["favorite_links"].as_array().unwrap();
+    assert_eq!(favs.len(), 1);
+    assert_eq!(favs[0]["url"], "https://fav.com");
+}

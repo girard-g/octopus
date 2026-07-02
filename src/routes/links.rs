@@ -19,8 +19,8 @@ fn host_of(url: &str) -> &str {
 }
 
 /// Validate + normalize input into the columns to store.
-/// Returns (url, title, description, category, tags).
-fn normalize(input: &LinkInput) -> Result<(String, String, Option<String>, Option<String>, Vec<String>), AppError> {
+/// Returns (url, title, description, category, tags, favorite).
+fn normalize(input: &LinkInput) -> Result<(String, String, Option<String>, Option<String>, Vec<String>, bool), AppError> {
     let url = input.url.trim().to_string();
     if url.is_empty() {
         return Err(AppError::BadRequest("url is required".into()));
@@ -49,7 +49,8 @@ fn normalize(input: &LinkInput) -> Result<(String, String, Option<String>, Optio
         .map(|t| t.trim().to_string())
         .filter(|t| !t.is_empty() && seen.insert(t.clone()))
         .collect();
-    Ok((url, title, description, category, tags))
+    let favorite = input.favorite.unwrap_or(false);
+    Ok((url, title, description, category, tags, favorite))
 }
 
 pub async fn list(_: AuthUser, State(s): State<AppState>) -> Result<Json<Vec<Link>>, AppError> {
@@ -66,16 +67,17 @@ pub async fn create(
     State(s): State<AppState>,
     Json(input): Json<LinkInput>,
 ) -> Result<(StatusCode, Json<Link>), AppError> {
-    let (url, title, description, category, tags) = normalize(&input)?;
+    let (url, title, description, category, tags, favorite) = normalize(&input)?;
     let row = sqlx::query_as::<_, Link>(
-        "insert into link (url, title, description, category, tags) \
-         values ($1,$2,$3,$4,$5) returning *",
+        "insert into link (url, title, description, category, tags, favorite) \
+         values ($1,$2,$3,$4,$5,$6) returning *",
     )
     .bind(&url)
     .bind(&title)
     .bind(&description)
     .bind(&category)
     .bind(&tags)
+    .bind(favorite)
     .fetch_one(&s.pool)
     .await?;
     Ok((StatusCode::CREATED, Json(row)))
@@ -87,9 +89,9 @@ pub async fn update(
     Path(id): Path<Uuid>,
     Json(input): Json<LinkInput>,
 ) -> Result<Json<Link>, AppError> {
-    let (url, title, description, category, tags) = normalize(&input)?;
+    let (url, title, description, category, tags, favorite) = normalize(&input)?;
     let row = sqlx::query_as::<_, Link>(
-        "update link set url=$2, title=$3, description=$4, category=$5, tags=$6 \
+        "update link set url=$2, title=$3, description=$4, category=$5, tags=$6, favorite=$7 \
          where id=$1 returning *",
     )
     .bind(id)
@@ -98,6 +100,7 @@ pub async fn update(
     .bind(&description)
     .bind(&category)
     .bind(&tags)
+    .bind(favorite)
     .fetch_optional(&s.pool)
     .await?
     .ok_or(AppError::NotFound)?;

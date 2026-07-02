@@ -171,6 +171,7 @@ pub struct Link {
     pub description: Option<String>,
     pub category: Option<String>,
     pub tags: Vec<String>,
+    pub favorite: bool,
     pub created_at: DateTime<Utc>,
 }
 
@@ -181,4 +182,5 @@ pub struct LinkInput {
     pub description: Option<String>,
     pub category: Option<String>,
     pub tags: Option<Vec<String>>,
+    pub favorite: Option<bool>,
 }

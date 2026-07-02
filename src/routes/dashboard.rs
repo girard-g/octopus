@@ -5,7 +5,7 @@ use serde::Serialize;
 use crate::app::AppState;
 use crate::auth::AuthUser;
 use crate::error::AppError;
-use crate::models::{Event, Project, Task};
+use crate::models::{Event, Link, Project, Task};
 
 #[derive(Serialize)]
 pub struct Counts {
@@ -20,6 +20,7 @@ pub struct Dashboard {
     pub due_tasks: Vec<Task>,
     pub counts: Counts,
     pub upcoming_events: Vec<Event>,
+    pub favorite_links: Vec<Link>,
 }
 
 pub async fn get(_: AuthUser, State(s): State<AppState>) -> Result<Json<Dashboard>, AppError> {
@@ -55,10 +56,17 @@ pub async fn get(_: AuthUser, State(s): State<AppState>) -> Result<Json<Dashboar
     .fetch_all(&s.pool)
     .await?;
 
+    let favorite_links = sqlx::query_as::<_, Link>(
+        "select * from link where favorite order by title",
+    )
+    .fetch_all(&s.pool)
+    .await?;
+
     Ok(Json(Dashboard {
         active_projects,
         due_tasks,
         counts: Counts { projects, active, open_tasks },
         upcoming_events,
+        favorite_links,
     }))
 }
