@@ -1,26 +1,10 @@
 <script>
-  import { link, push, router } from 'svelte-spa-router'
-  import { api } from '../api.js'
-  import { markLoggedOut } from '../session.svelte.js'
-
-  // Numbered terminal nav. Source labels stay natural-case (e2e matches
-  // <a> textContent on 'Contacts'/'Projects'); CSS lowercases for the look.
-  const items = [
-    { href: '/', n: '01', label: 'Dashboard' },
-    { href: '/contacts', n: '02', label: 'Contacts' },
-    { href: '/projects', n: '03', label: 'Projects' },
-    { href: '/calendar', n: '04', label: 'Calendar' },
-    { href: '/notes', n: '05', label: 'Notes' },
-  ]
-
-  async function logout() {
-    try { await api.post('/api/logout') } catch { /* ignore */ }
-    markLoggedOut()
-    push('/login')
-  }
+  import { link, router } from 'svelte-spa-router'
+  import { NAV_ITEMS, logout } from '../nav.js'
+  const items = NAV_ITEMS
 </script>
 
-<aside class="sticky top-0 flex h-screen w-[220px] shrink-0 flex-col border-r border-border bg-surface">
+<aside class="sticky top-0 hidden h-screen w-[220px] shrink-0 flex-col border-r border-border bg-surface md:flex">
   <!-- Wordmark: octopus + blinking accent block cursor, faint glow halo. -->
   <div class="relative px-4 pb-5 pt-5">
     <div class="pointer-events-none absolute -left-8 -top-8 h-24 w-24 rounded-full bg-accent/15 blur-2xl"></div>

@@ -17,7 +17,7 @@
   <div class="flex min-h-full items-center justify-center p-4">
   <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
   <div
-    class="relative my-auto w-full max-w-[400px] rounded-sm border border-accent-dim bg-surface shadow-[0_0_0_1px_rgba(62,245,196,0.08),0_24px_70px_-16px_rgba(0,0,0,0.85),0_0_26px_rgba(62,245,196,0.1)]"
+    class="relative my-auto w-[calc(100vw-2rem)] max-w-[400px] max-h-[85dvh] overflow-y-auto rounded-sm border border-accent-dim bg-surface shadow-[0_0_0_1px_rgba(62,245,196,0.08),0_24px_70px_-16px_rgba(0,0,0,0.85),0_0_26px_rgba(62,245,196,0.1)]"
     role="dialog"
     aria-modal="true"
     tabindex="-1"
