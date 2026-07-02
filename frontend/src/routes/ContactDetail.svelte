@@ -46,8 +46,6 @@
 
   $effect(() => { if (id) load() })
 
-  function copy(text) { navigator.clipboard?.writeText(text) }
-
   function openEdit() { editing = { ...contact } }
   async function saveEdit(e) {
     e.preventDefault()
