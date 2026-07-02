@@ -219,7 +219,7 @@
   }
 
   function handleDayKey(e, iso) {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openNew(iso) }
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDayCell(iso) }
   }
 
   const contactName = (id) => contacts.find((c) => c.id === id)?.name ?? '?'
@@ -295,7 +295,7 @@
             onclick={() => openDayCell(cell.iso)}
             onkeydown={(e) => handleDayKey(e, cell.iso)}
             class="min-h-[54px] md:min-h-[90px] cursor-pointer border-r border-border/30 p-1.5 transition-colors duration-100 last:border-0 hover:bg-surface-2 {!cell.inMonth ? 'opacity-40' : ''}"
-            aria-label="{cell.iso}"
+            aria-label={isMobile ? cell.iso : `New event on ${cell.iso}`}
           >
             <!-- Day number -->
             <div class="mb-1 flex justify-end">
