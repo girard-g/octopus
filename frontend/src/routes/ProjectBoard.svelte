@@ -284,7 +284,7 @@
                 <button
                   onclick={(e) => { e.stopPropagation(); deleteTask(t.id) }}
                   aria-label="Delete task"
-                  class="shrink-0 font-mono text-[16px] leading-none text-faint opacity-100 transition hover:text-st-lost focus:opacity-100 md:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
+                  class="shrink-0 max-md:grid max-md:h-10 max-md:w-10 max-md:place-items-center font-mono text-[16px] leading-none text-faint opacity-100 transition hover:text-st-lost focus:opacity-100 md:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
                 >×</button>
               </div>
             {/each}
