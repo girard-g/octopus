@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+    <rect width="512" height="512" fill="#06070a"/>
+    <g filter="url(#g)" transform="translate(0 0) scale(1)">
+    <polyline points="176,196 256,256 176,316" fill="none" stroke="#3ef5c4"
+      stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="292" y="214" width="46" height="84" rx="6" fill="#3ef5c4"/></g>
+    <defs><filter id="g" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="b"/><feMerge>
+      <feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+  </svg>
