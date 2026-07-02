@@ -96,6 +96,9 @@
       <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
       <div
         onclick={() => push('/contacts/' + c.id)}
+        role="button"
+        tabindex="0"
+        onkeydown={(e) => { if (e.key === 'Enter') push('/contacts/' + c.id) }}
         class="group relative cursor-pointer rounded-sm border border-border bg-surface p-4 transition hover:border-accent-dim hover:shadow-[0_0_14px_rgba(62,245,196,0.12)]"
       >
         <div class="absolute right-2 top-2 flex gap-1 opacity-0 transition group-hover:opacity-100">
