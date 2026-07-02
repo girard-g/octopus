@@ -19,10 +19,14 @@ RUN cargo build --release
 # ---- runtime ----
 FROM debian:bookworm-slim AS runtime
 WORKDIR /app
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+# curl is required by the container healthcheck (Coolify/Docker run it inside the
+# image); debian-slim ships neither curl nor wget, so install it explicitly.
+RUN apt-get update && apt-get install -y ca-certificates curl && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app/target/release/octopus /usr/local/bin/octopus
 COPY --from=build /app/migrations ./migrations
 COPY --from=frontend /app/static ./static
 ENV PORT=8080
 EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+    CMD curl -fsS http://localhost:8080/api/health || exit 1
 CMD ["octopus"]
