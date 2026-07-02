@@ -34,10 +34,11 @@ export default defineConfig({
       },
     }),
   ],
+  // Build straight into the dir Axum serves (../static at repo root).
   build: { outDir: '../static', emptyOutDir: true },
   server: {
     port: 5173,
-    proxy: { '/api': 'http://localhost:8090' },
+    proxy: { '/api': 'http://localhost:8090' }, // Rust API in local dev
   },
   test: { environment: 'jsdom' },
 })
