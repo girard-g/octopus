@@ -59,6 +59,13 @@
     catch (e) { error = e.message }
   }
 
+  async function toggleFavorite(l) {
+    try {
+      await api.put('/api/links/' + l.id, { ...l, favorite: !l.favorite })
+      await load()
+    } catch (e) { error = e.message }
+  }
+
   async function save(e) {
     e.preventDefault()
     fError = ''
@@ -165,6 +172,11 @@
                 {/if}
               </div>
               <div class="flex shrink-0 items-center gap-1">
+                <button
+                  onclick={() => toggleFavorite(l)}
+                  aria-label={l.favorite ? 'Unfavorite link' : 'Favorite link'}
+                  class="grid h-10 w-10 place-items-center font-mono text-[15px] leading-none transition md:h-auto md:w-auto md:px-1 {l.favorite ? 'text-accent glow-text' : 'text-faint hover:text-accent'}"
+                >{l.favorite ? '★' : '☆'}</button>
                 <button
                   onclick={() => openEdit(l)}
                   aria-label="Edit link"

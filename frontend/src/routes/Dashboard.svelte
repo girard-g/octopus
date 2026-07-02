@@ -1,11 +1,13 @@
 <script>
   import { api } from '../lib/api.js'
   import { fmtTime } from '../lib/calendar.js'
+  import { faviconUrl } from '../lib/links.js'
 
   let counts = $state({ projects: 0, active: 0, open_tasks: 0 })
   let activeProjects = $state([])
   let dueTasks = $state([])
   let upcomingEvents = $state([])
+  let favoriteLinks = $state([])
   let contactsById = $state({})
   let projectsById = $state({})
   let newTask = $state('')
@@ -42,6 +44,7 @@
       activeProjects = dash.active_projects
       dueTasks = dash.due_tasks
       upcomingEvents = dash.upcoming_events ?? []
+      favoriteLinks = dash.favorite_links ?? []
       contactsById = Object.fromEntries(contacts.map((c) => [c.id, c.name]))
       projectsById = Object.fromEntries(projects.map((p) => [p.id, p.title]))
     } catch (e) { error = e.message }
@@ -60,6 +63,13 @@
   async function toggleDone(t) {
     try {
       await api.put(`/api/tasks/${t.id}`, { ...t, status: 'done' })
+      await load()
+    } catch (e) { error = e.message }
+  }
+
+  async function unpin(l) {
+    try {
+      await api.put('/api/links/' + l.id, { ...l, favorite: false })
       await load()
     } catch (e) { error = e.message }
   }
@@ -88,6 +98,40 @@
     </div>
   {/each}
 </div>
+
+{#if favoriteLinks.length}
+  <section class="rise mb-5 rounded-sm border border-border bg-surface" style="animation-delay:40ms">
+    <div class="flex items-center justify-between border-b border-border px-4 py-2.5">
+      <h2 class="font-mono text-[12px] font-medium text-muted"><span class="text-accent glow-text">&gt;</span> pinned</h2>
+      <span class="font-mono text-[12px] tabular-nums text-faint">[{favoriteLinks.length}]</span>
+    </div>
+    <ul>
+      {#each favoriteLinks as l (l.id)}
+        <li class="flex items-center gap-3 border-b border-border px-4 py-2.5 last:border-0">
+          <img
+            src={faviconUrl(l.url)}
+            alt=""
+            width="16"
+            height="16"
+            class="h-4 w-4 shrink-0 rounded-[2px]"
+            onerror={(e) => { e.currentTarget.replaceWith(document.createTextNode('▸')) }}
+          />
+          <a
+            href={l.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="truncate font-mono text-[13px] text-ink hover:text-accent"
+          >{l.title}</a>
+          <button
+            onclick={() => unpin(l)}
+            aria-label="Unpin {l.title}"
+            class="ml-auto shrink-0 font-mono text-[14px] leading-none text-accent glow-text transition hover:text-st-lost"
+          >★</button>
+        </li>
+      {/each}
+    </ul>
+  </section>
+{/if}
 
 <div class="rise grid grid-cols-1 gap-4 md:grid-cols-2" style="animation-delay:60ms">
   <section class="rounded-sm border border-border bg-surface">
