@@ -59,7 +59,7 @@
 
 {#if error}<p class="rise mb-4 rounded-sm border border-st-lost/30 bg-st-lost/10 px-3 py-2 font-mono text-[12px] text-st-lost">[ ERR ] {error}</p>{/if}
 
-<div class="rise rounded-sm border border-border bg-surface" style="animation-delay:40ms">
+<div class="rise max-md:overflow-x-auto rounded-sm border border-border bg-surface" style="animation-delay:40ms">
   <table class="w-full border-collapse">
     <thead>
       <tr class="border-b border-border">

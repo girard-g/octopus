@@ -1,6 +1,8 @@
 <script>
   import Router, { push, router } from 'svelte-spa-router'
   import Sidebar from './lib/components/Sidebar.svelte'
+  import BottomTabs from './lib/components/BottomTabs.svelte'
+  import { logout } from './lib/nav.js'
   import Login from './routes/Login.svelte'
   import Dashboard from './routes/Dashboard.svelte'
   import Contacts from './routes/Contacts.svelte'
@@ -69,8 +71,17 @@
             <span class="lowercase text-ink">{title}</span>
             <span class="sr-only">{title}</span>
           </h1>
+          <div class="ml-auto flex items-center gap-3 md:hidden">
+            <span class="select-none font-mono text-[13px] font-bold tracking-tight text-ink">octopus<span class="cursor text-accent glow-text">▋</span></span>
+            <button
+              onclick={logout}
+              aria-label="Logout"
+              title="Logout"
+              class="grid h-10 w-10 place-items-center rounded-sm border border-border text-[14px] text-faint transition-colors hover:border-st-lost/50 hover:text-st-lost"
+            >⏻</button>
+          </div>
           <div
-            class="ml-auto flex items-center gap-2 rounded-sm border border-border bg-surface-2 px-2.5 py-1.5 font-mono text-[12px] text-faint"
+            class="ml-auto hidden items-center gap-2 rounded-sm border border-border bg-surface-2 px-2.5 py-1.5 font-mono text-[12px] text-faint md:flex"
             aria-hidden="true"
           >
             <span class="text-accent-dim">/</span>
@@ -78,11 +89,12 @@
             <kbd class="ml-2 rounded-sm border border-border-strong bg-bg px-1.5 py-0.5 text-[11px] text-muted">⌘K</kbd>
           </div>
         </header>
-        <div class="px-8 py-7">
+        <div class="px-4 py-4 pb-24 md:px-8 md:py-7 md:pb-7">
           <Router {routes} />
         </div>
       </div>
     </main>
+    <BottomTabs />
   </div>
 {:else}
   <Router {routes} />

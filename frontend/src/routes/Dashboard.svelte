@@ -89,7 +89,7 @@
   {/each}
 </div>
 
-<div class="rise grid grid-cols-2 gap-4" style="animation-delay:60ms">
+<div class="rise grid grid-cols-1 gap-4 md:grid-cols-2" style="animation-delay:60ms">
   <section class="rounded-sm border border-border bg-surface">
     <div class="flex items-center justify-between border-b border-border px-4 py-2.5">
       <h2 class="font-mono text-[12px] font-medium text-muted"><span class="text-accent glow-text">&gt;</span> active_projects</h2>
