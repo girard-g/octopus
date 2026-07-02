@@ -1,7 +1,7 @@
 <script>
   import { api } from '../lib/api.js'
   import Modal from '../lib/components/Modal.svelte'
-  import { monthMatrix, monthRange, eventsByDay, fmtTime, toISODate, generateOccurrences, localDateTimeToUtc, dayRange, dayAgenda } from '../lib/calendar.js'
+  import { monthMatrix, monthRange, eventsByDay, fmtTime, toISODate, generateOccurrences, localDateTimeToUtc, dayRange, dayAgenda, dayCellAction } from '../lib/calendar.js'
 
   const FIELD = 'w-full rounded-sm border border-border bg-surface-2 px-2.5 py-2 font-mono text-[13px] text-ink placeholder:text-faint focus:border-accent focus:shadow-[0_0_0_3px_rgba(62,245,196,0.14)] focus:outline-none'
   const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -81,6 +81,26 @@
 
   function openNew(iso) {
     modal = { mode: 'new', ev: newEvSkeleton(iso) }
+  }
+
+  // Reactive <768px flag driven by matchMedia (browser only; SSR-safe guard).
+  let isMobile = $state(false)
+  $effect(() => {
+    if (typeof window === 'undefined') return
+    const mq = window.matchMedia('(max-width: 767px)')
+    isMobile = mq.matches
+    const on = (e) => { isMobile = e.matches }
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  })
+
+  function openDayCell(iso) {
+    if (dayCellAction(isMobile) === 'day') {
+      selectedDate = iso
+      view = 'day'
+    } else {
+      openNew(iso)
+    }
   }
 
   function openEdit(ev, e) {
@@ -272,10 +292,10 @@
           <div
             role="button"
             tabindex="0"
-            onclick={() => openNew(cell.iso)}
+            onclick={() => openDayCell(cell.iso)}
             onkeydown={(e) => handleDayKey(e, cell.iso)}
-            class="min-h-[90px] cursor-pointer border-r border-border/30 p-1.5 transition-colors duration-100 last:border-0 hover:bg-surface-2 {!cell.inMonth ? 'opacity-40' : ''}"
-            aria-label="New event on {cell.iso}"
+            class="min-h-[54px] md:min-h-[90px] cursor-pointer border-r border-border/30 p-1.5 transition-colors duration-100 last:border-0 hover:bg-surface-2 {!cell.inMonth ? 'opacity-40' : ''}"
+            aria-label="{cell.iso}"
           >
             <!-- Day number -->
             <div class="mb-1 flex justify-end">
@@ -284,18 +304,27 @@
             <!-- Event chips -->
             {#if byDay.has(cell.iso)}
               {@const dayEvents = byDay.get(cell.iso)}
-              {#each dayEvents.slice(0, 3) as ev}
-                <button
-                  onclick={(e) => openEdit(ev, e)}
-                  class="mb-0.5 w-full truncate rounded-sm bg-accent-dim/20 px-1.5 py-0.5 text-left font-mono text-[11px] text-accent transition hover:bg-accent-dim/40"
-                  title="{ev.title}{ev.all_day ? '' : ' ' + fmtTime(ev.starts_at)}{ev.contact_ids?.length ? ' — ' + ev.contact_ids.map(contactName).join(', ') : ''}"
-                >
-                  {#if !ev.all_day}<span class="text-faint">{fmtTime(ev.starts_at)} </span>{/if}{ev.title}
-                </button>
-              {/each}
-              {#if dayEvents.length > 3}
-                <div class="mt-0.5 font-mono text-[10px] text-faint">+{dayEvents.length - 3} more</div>
-              {/if}
+              <!-- Mobile: up to 4 event dots -->
+              <div class="flex flex-wrap gap-0.5 md:hidden" aria-hidden="true">
+                {#each dayEvents.slice(0, 4) as _ev}
+                  <span class="h-1.5 w-1.5 rounded-full bg-accent glow-soft"></span>
+                {/each}
+              </div>
+              <!-- Desktop: text chips (unchanged) -->
+              <div class="hidden md:block">
+                {#each dayEvents.slice(0, 3) as ev}
+                  <button
+                    onclick={(e) => openEdit(ev, e)}
+                    class="mb-0.5 w-full truncate rounded-sm bg-accent-dim/20 px-1.5 py-0.5 text-left font-mono text-[11px] text-accent transition hover:bg-accent-dim/40"
+                    title="{ev.title}{ev.all_day ? '' : ' ' + fmtTime(ev.starts_at)}{ev.contact_ids?.length ? ' — ' + ev.contact_ids.map(contactName).join(', ') : ''}"
+                  >
+                    {#if !ev.all_day}<span class="text-faint">{fmtTime(ev.starts_at)} </span>{/if}{ev.title}
+                  </button>
+                {/each}
+                {#if dayEvents.length > 3}
+                  <div class="mt-0.5 font-mono text-[10px] text-faint">+{dayEvents.length - 3} more</div>
+                {/if}
+              </div>
             {/if}
           </div>
         {/each}
@@ -343,7 +372,7 @@
         <label for="all_day" class="font-mono text-[13px] text-muted cursor-pointer">All day</label>
       </div>
       {#if modal.ev.all_day}
-        <div class="grid grid-cols-2 gap-2">
+        <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <div>
             <p class="label mb-1.5">Start date</p>
             <input type="date" bind:value={modal.ev.starts_date} required class={FIELD} />
@@ -354,7 +383,7 @@
           </div>
         </div>
       {:else}
-        <div class="grid grid-cols-3 gap-2">
+        <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <div class:opacity-50={modal.ev.series_id && modal.ev.scope !== 'one'}>
             <p class="label mb-1.5">Date</p>
             <input type="date" bind:value={modal.ev.date} required class={FIELD} disabled={modal.ev.series_id && modal.ev.scope !== 'one'} />
@@ -370,7 +399,7 @@
         </div>
       {/if}
       {#if modal.mode === 'new'}
-        <div class="grid grid-cols-2 gap-2">
+        <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <div>
             <p class="label mb-1.5">Repeat</p>
             <select bind:value={modal.ev.repeat} class={FIELD}>

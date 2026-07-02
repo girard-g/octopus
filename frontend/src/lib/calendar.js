@@ -147,3 +147,8 @@ export function dayAgenda(events) {
 export function localDateTimeToUtc(dateStr, timeStr) {
   return new Date(`${dateStr}T${timeStr}`).toISOString()
 }
+
+// On mobile a day cell drills into the day agenda; on desktop it starts a new event.
+export function dayCellAction(isMobile) {
+  return isMobile ? 'day' : 'new'
+}
