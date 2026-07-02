@@ -33,21 +33,6 @@ async fn link_crud(pool: sqlx::PgPool) {
     ).await;
     assert_eq!(l2["title"], "example.com");
 
-    // filter by category
-    let (status, list) = send(
-        &app,
-        json_req("GET", "/api/links?category=Rust", json!(null)).with_cookie(&cookie),
-    ).await;
-    assert_eq!(status, StatusCode::OK);
-    assert_eq!(list.as_array().unwrap().len(), 1);
-
-    // filter by tag
-    let (_, list) = send(
-        &app,
-        json_req("GET", "/api/links?tag=free", json!(null)).with_cookie(&cookie),
-    ).await;
-    assert_eq!(list.as_array().unwrap().len(), 1);
-
     // update
     let (status, upd) = send(
         &app,

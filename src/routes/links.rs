@@ -1,7 +1,6 @@
-use axum::extract::{Path, Query, State};
+use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::Json;
-use serde::Deserialize;
 use std::collections::HashSet;
 use uuid::Uuid;
 
@@ -9,12 +8,6 @@ use crate::app::AppState;
 use crate::auth::AuthUser;
 use crate::error::AppError;
 use crate::models::{Link, LinkInput};
-
-#[derive(Deserialize)]
-pub struct ListQuery {
-    pub category: Option<String>,
-    pub tag: Option<String>,
-}
 
 /// Host portion of an already-validated http(s) URL, for the default title.
 fn host_of(url: &str) -> &str {
@@ -59,19 +52,10 @@ fn normalize(input: &LinkInput) -> Result<(String, String, Option<String>, Optio
     Ok((url, title, description, category, tags))
 }
 
-pub async fn list(
-    _: AuthUser,
-    State(s): State<AppState>,
-    Query(q): Query<ListQuery>,
-) -> Result<Json<Vec<Link>>, AppError> {
+pub async fn list(_: AuthUser, State(s): State<AppState>) -> Result<Json<Vec<Link>>, AppError> {
     let rows = sqlx::query_as::<_, Link>(
-        "select * from link \
-         where ($1::text is null or category = $1) \
-           and ($2::text is null or tags @> array[$2]) \
-         order by category nulls last, created_at desc",
+        "select * from link order by category nulls last, created_at desc",
     )
-    .bind(q.category.as_deref())
-    .bind(q.tag.as_deref())
     .fetch_all(&s.pool)
     .await?;
     Ok(Json(rows))

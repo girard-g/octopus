@@ -55,7 +55,6 @@
   }
 
   async function deleteLink(id, ev) {
-    ev.stopPropagation()
     try { await api.del('/api/links/' + id); await load() }
     catch (e) { error = e.message }
   }
