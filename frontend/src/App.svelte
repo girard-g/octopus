@@ -52,6 +52,9 @@
   })
 </script>
 
+<!-- One-time CRT power-on sweep across the whole shell on load. -->
+<div class="crt-power-on" aria-hidden="true"></div>
+
 {#if !ready}
   <div class="grid min-h-screen place-items-center font-mono text-[13px] text-faint"><span class="text-accent glow-text">&gt;</span>&nbsp;booting<span class="cursor">▋</span></div>
 {:else if showChrome(getAuthed(), router.location)}

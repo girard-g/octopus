@@ -16,8 +16,8 @@
   --color-border-2:      #5a6c82;
   --color-border-strong: #5a6c82;   /* alias of border-2 (kept for scrollbar) */
   --color-ink:           #e2eae3;   /* slightly green-tinted off-white */
-  --color-muted:         #93a09a;
-  --color-faint:         #68746c;
+  --color-muted:         #a7b3aa;   /* secondary text — clears AA on surface w/ headroom */
+  --color-faint:         #8b978f;   /* tertiary text (dates/tags/counts) — was #68746c, failed AA on panels */
   --color-accent:        #3ef5c4;   /* neon mint — the ONE accent */
   --color-accent-dim:    #1c8f76;
   --color-on-accent:     #04130e;
@@ -131,6 +131,36 @@
 .boot > *:nth-child(3) { animation-delay: 180ms; }
 .boot > *:nth-child(n+4) { animation-delay: 240ms; }
 
+/* --- Signature: one-time CRT power-on scan sweep. A bright mint scanline with a
+   trailing phosphor glow rakes down the whole viewport once on load, tying the
+   boot reveal + static scanlines into a single "screen turns on" moment. Fixed +
+   pointer-events:none so it never intercepts input; sits just under the static
+   scanline overlay (9999). */
+@keyframes crt-power-on {
+  from { transform: translateY(-55vh); opacity: 0; }
+  9%   { opacity: 1; }
+  88%  { opacity: 1; }
+  to   { transform: translateY(100vh); opacity: 0; }
+}
+.crt-power-on {
+  position: fixed;
+  left: 0; right: 0; top: 0;
+  height: 42vh;
+  z-index: 9998;
+  pointer-events: none;
+  will-change: transform, opacity;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(62, 245, 196, 0.028) 62%,
+    rgba(62, 245, 196, 0.12) 90%,
+    rgba(150, 255, 224, 0.42) 100%
+  );
+  border-bottom: 1px solid rgba(120, 255, 222, 0.7);
+  box-shadow: 0 1px 26px 2px rgba(62, 245, 196, 0.35);
+  animation: crt-power-on 880ms cubic-bezier(0.45, 0.05, 0.2, 1) both;
+}
+
 /* One composed entrance reused by routes: small fade + translate-y. */
 @keyframes ink-rise {
   from { opacity: 0; transform: translateY(8px); }
@@ -140,5 +170,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .rise, .boot > *, .cursor { animation: none; }
+  .crt-power-on { display: none; }
   body::after { opacity: 0.12; }
 }
