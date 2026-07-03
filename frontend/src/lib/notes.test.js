@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { noteTitle, buildFolderTree, sortNotes, searchNotes, folderPath, folderBlastRadius } from './notes.js'
+import { noteTitle, buildFolderTree, sortNotes, searchNotes, folderPath, folderBlastRadius, folderSubtreeIds } from './notes.js'
 
 describe('noteTitle', () => {
   it('prefers explicit title', () => {
@@ -54,6 +54,19 @@ describe('folderPath', () => {
     ]
     expect(folderPath(folders, 'b')).toBe('clients / acme')
     expect(folderPath(folders, null)).toBe('')
+  })
+})
+
+describe('folderSubtreeIds', () => {
+  it('does not hang on cyclic parent_id data', () => {
+    // A.parent_id=B, B.parent_id=A — traversal must terminate via the visited guard
+    const folders = [
+      { id: 'A', name: 'a', parent_id: 'B' },
+      { id: 'B', name: 'b', parent_id: 'A' },
+    ]
+    const set = folderSubtreeIds(folders, 'A')
+    expect(set.has('A')).toBe(true)
+    expect(set.has('B')).toBe(true)
   })
 })
 

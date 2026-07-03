@@ -65,4 +65,53 @@ describe('Notes autosave', () => {
       expect(call[0]).not.toBe('/api/notes/a-server-id')
     }
   })
+
+  it('does not drop text typed during an in-flight create (fix 4)', async () => {
+    let resolvePost
+    api.post.mockImplementation(() => new Promise((r) => { resolvePost = r }))
+
+    const { getByText, getByPlaceholderText } = render(Notes)
+    await waitFor(() => expect(api.get).toHaveBeenCalled())
+
+    await fireEvent.click(getByText('+ note'))
+    const title = getByPlaceholderText('title…')
+    await fireEvent.input(title, { target: { value: 'Draft' } })
+    await fireEvent.blur(title) // persist now → POST in flight, unresolved
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1))
+
+    // Type more while the create round-trips: the scheduled save must reschedule, not vanish.
+    await fireEvent.input(title, { target: { value: 'Draft plus more' } })
+    await new Promise((r) => setTimeout(r, 700)) // let the scheduled save FIRE while the create is still in flight → must reschedule, not drop
+
+    // Resolve the create; the rescheduled save must then PUT the *latest* text.
+    resolvePost({ id: 'new-id', title: 'Draft', body: '', folder_id: null, contact_id: null, project_id: null, pinned: false })
+
+    await waitFor(
+      () => expect(api.put).toHaveBeenCalledWith('/api/notes/new-id', expect.objectContaining({ title: 'Draft plus more' })),
+      { timeout: 3000 },
+    )
+  })
+
+  it('discards a brand-new note deleted mid-create (fix 5)', async () => {
+    let resolvePost
+    api.post.mockImplementation(() => new Promise((r) => { resolvePost = r }))
+
+    const { getByText, queryByText, getByPlaceholderText } = render(Notes)
+    await waitFor(() => expect(api.get).toHaveBeenCalled())
+
+    await fireEvent.click(getByText('+ note'))
+    const title = getByPlaceholderText('title…')
+    await fireEvent.input(title, { target: { value: 'Ghost' } })
+    await fireEvent.blur(title) // POST in flight
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1))
+
+    // Delete the note while its create is still in flight.
+    await fireEvent.click(getByText('delete'))
+
+    // Create resolves — it must be undone (api.del), not merged back into the list.
+    resolvePost({ id: 'ghost-id', title: 'Ghost', body: '', folder_id: null, contact_id: null, project_id: null, pinned: false })
+
+    await waitFor(() => expect(api.del).toHaveBeenCalledWith('/api/notes/ghost-id'), { timeout: 3000 })
+    expect(queryByText('Ghost')).toBeNull() // never resurrected into the sidebar
+  })
 })

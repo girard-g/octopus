@@ -23,6 +23,7 @@
   let saveStatus = $state('idle')     // 'idle' | 'saving' | 'saved'
   let saveTimer  = null
   let creating   = false // guards against a duplicate POST if persist() re-enters while a create is in flight
+  let discardCreate = false // set when a brand-new note is deleted mid-create; the in-flight POST is undone on resolve
 
   const tree         = $derived(buildFolderTree(folders))
   const contactsById = $derived(Object.fromEntries(contacts.map((c) => [c.id, c.name])))
@@ -79,7 +80,7 @@
     const d = draft
     if (!d) return
     if (!hasContent(d)) { if (draft === d) saveStatus = 'idle'; return } // never write an empty draft; never wipe to empty
-    if (!d.id && creating) return // a create is already in flight for this draft; the next scheduleSave/blur will retry
+    if (!d.id && creating) { scheduleSave(); return } // a create is already in flight; retry (~600ms) until it resolves, then PUT the latest content
     const payload = {
       title: d.title.trim() || null,
       body: d.body,
@@ -91,10 +92,15 @@
     if (draft === d) saveStatus = 'saving'
     try {
       if (d.id) { mergeNote(await api.put('/api/notes/' + d.id, payload)) }
-      else { creating = true; const n = await api.post('/api/notes', payload); d.id = n.id; mergeNote(n) }
+      else {
+        creating = true
+        const n = await api.post('/api/notes', payload)
+        if (discardCreate) { await api.del('/api/notes/' + n.id) } // deleted mid-create: undo the just-created row instead of merging it back
+        else { d.id = n.id; mergeNote(n) }
+      }
       if (draft === d) saveStatus = 'saved'
     } catch (e) { error = e.message; if (draft === d) saveStatus = 'idle' }
-    finally { creating = false }
+    finally { creating = false; discardCreate = false }
   }
 
   function scheduleSave() {
@@ -118,7 +124,7 @@
   }
 
   async function deleteNote() {
-    if (!draft?.id) { draft = null; return }
+    if (!draft?.id) { if (creating) discardCreate = true; draft = null; return } // create in flight: mark it for undo on resolve
     try { await api.del('/api/notes/' + draft.id); notes = notes.filter((n) => n.id !== draft.id); draft = null }
     catch (e) { error = e.message }
   }
@@ -170,12 +176,14 @@
 
   async function confirmDeleteFolder() {
     const id = folderToDelete.id
+    const deleted = folderSubtreeIds(folders, id) // capture the cascade-deleted subtree before folders reload
     try {
       await api.del('/api/folders/' + id)
       folderToDelete = null
       await load() // reload: cascaded subfolders gone, notes fell to Unfiled
-      if (draft && !notes.some((n) => n.id === draft.id)) draft = null
-      if (selectedFolder === id) selectedFolder = null
+      if (draft && !notes.some((n) => n.id === draft.id)) draft = null // draft note was actually deleted
+      else if (draft && deleted.has(draft.folder_id)) draft.folder_id = null // note survived (folder_id nulled server-side); match it so autosave doesn't PUT a dead folder_id
+      if (deleted.has(selectedFolder)) selectedFolder = null // selected folder (or a cascade-deleted child) is gone
     } catch (e) { error = e.message }
   }
 </script>

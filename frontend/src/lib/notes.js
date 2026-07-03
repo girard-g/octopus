@@ -58,7 +58,7 @@ export function folderSubtreeIds(folders, id) {
   const stack = [id]
   while (stack.length) {
     const cur = stack.pop()
-    for (const c of childrenOf.get(cur) || []) { set.add(c); stack.push(c) }
+    for (const c of childrenOf.get(cur) || []) { if (!set.has(c)) { set.add(c); stack.push(c) } }
   }
   return set
 }
