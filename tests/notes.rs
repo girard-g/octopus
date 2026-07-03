@@ -224,3 +224,28 @@ async fn note_folder_filter_pins_first(pool: sqlx::PgPool) {
     assert_eq!(arr.len(), 2);
     assert_eq!(arr[0]["body"], "pinned"); // pinned sorts first despite being older
 }
+
+#[sqlx::test]
+async fn note_survives_contact_delete_when_filed_in_folder(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+    let cid = make_contact(&app, &cookie).await;
+    let (_, f) = send(&app, json_req("POST", "/api/folders", json!({"name":"F"})).with_cookie(&cookie)).await;
+    let fid = f["id"].as_str().unwrap().to_string();
+
+    let (_, n) = send(
+        &app,
+        json_req("POST", "/api/notes", json!({"body":"filed","contact_id":cid,"folder_id":fid})).with_cookie(&cookie),
+    )
+    .await;
+    let note_id = n["id"].as_str().unwrap().to_string();
+
+    let (status, _) = send(&app, json_req("DELETE", &format!("/api/contacts/{cid}"), json!(null)).with_cookie(&cookie)).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+
+    let (_, all) = send(&app, json_req("GET", "/api/notes", json!(null)).with_cookie(&cookie)).await;
+    let found = all.as_array().unwrap().iter().find(|n| n["id"] == note_id).unwrap();
+    assert!(found["contact_id"].is_null());
+    assert_eq!(found["folder_id"], fid);
+}

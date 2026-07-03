@@ -67,3 +67,49 @@ async fn folder_delete_cascades_and_unfiles_notes(pool: sqlx::PgPool) {
     let n = all.as_array().unwrap().iter().find(|n| n["id"] == note_id).unwrap();
     assert!(n["folder_id"].is_null());
 }
+
+#[sqlx::test]
+async fn folder_reparent_rejects_indirect_cycle(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+
+    let (_, a) = send(&app, json_req("POST", "/api/folders", json!({"name":"A"})).with_cookie(&cookie)).await;
+    let a_id = a["id"].as_str().unwrap().to_string();
+    let (_, b) = send(&app, json_req("POST", "/api/folders", json!({"name":"B","parent_id":a_id})).with_cookie(&cookie)).await;
+    let b_id = b["id"].as_str().unwrap().to_string();
+
+    // B is already a child of A; moving A under B would create a cycle.
+    let (status, _) = send(&app, json_req("PUT", &format!("/api/folders/{a_id}"), json!({"name":"A","parent_id":b_id})).with_cookie(&cookie)).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+}
+
+#[sqlx::test]
+async fn folder_reparent_rejects_direct_self_parent(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+
+    let (_, a) = send(&app, json_req("POST", "/api/folders", json!({"name":"A"})).with_cookie(&cookie)).await;
+    let a_id = a["id"].as_str().unwrap().to_string();
+
+    let (status, _) = send(&app, json_req("PUT", &format!("/api/folders/{a_id}"), json!({"name":"A","parent_id":a_id})).with_cookie(&cookie)).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+}
+
+#[sqlx::test]
+async fn folder_reparent_allows_legitimate_move(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+
+    let (_, a) = send(&app, json_req("POST", "/api/folders", json!({"name":"A"})).with_cookie(&cookie)).await;
+    let a_id = a["id"].as_str().unwrap().to_string();
+    let (_, b) = send(&app, json_req("POST", "/api/folders", json!({"name":"B"})).with_cookie(&cookie)).await;
+    let b_id = b["id"].as_str().unwrap().to_string();
+
+    // A and B are siblings (both roots); moving B under A is a legitimate re-parent.
+    let (status, moved) = send(&app, json_req("PUT", &format!("/api/folders/{b_id}"), json!({"name":"B","parent_id":a_id})).with_cookie(&cookie)).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(moved["parent_id"], a_id);
+}

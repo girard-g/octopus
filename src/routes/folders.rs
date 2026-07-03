@@ -52,6 +52,26 @@ pub async fn create(
     Ok((StatusCode::CREATED, Json(row)))
 }
 
+async fn would_cycle(s: &AppState, id: Uuid, new_parent: Uuid) -> Result<bool, AppError> {
+    let rows: Vec<(Uuid, Option<Uuid>)> = sqlx::query_as("select id, parent_id from folder")
+        .fetch_all(&s.pool)
+        .await?;
+    let parent_of: std::collections::HashMap<Uuid, Option<Uuid>> = rows.into_iter().collect();
+
+    let mut current = Some(new_parent);
+    let mut visited = std::collections::HashSet::new();
+    while let Some(cur) = current {
+        if cur == id {
+            return Ok(true);
+        }
+        if !visited.insert(cur) {
+            break; // pre-existing cycle unrelated to this move; stop walking
+        }
+        current = parent_of.get(&cur).copied().flatten();
+    }
+    Ok(false)
+}
+
 pub async fn update(
     _: AuthUser,
     State(s): State<AppState>,
@@ -59,8 +79,12 @@ pub async fn update(
     Json(input): Json<FolderInput>,
 ) -> Result<Json<Folder>, AppError> {
     let name = clean_name(&input.name)?;
-    if input.parent_id == Some(id) {
-        return Err(AppError::BadRequest("a folder cannot be its own parent".into()));
+    if let Some(new_parent) = input.parent_id {
+        if new_parent == id || would_cycle(&s, id, new_parent).await? {
+            return Err(AppError::BadRequest(
+                "cannot move a folder under its own descendant".into(),
+            ));
+        }
     }
     let row = sqlx::query_as::<_, Folder>(
         "update folder set name=$2, parent_id=$3, position=coalesce($4, position) \
