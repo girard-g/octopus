@@ -151,16 +151,40 @@ pub struct SeriesUpdateInput {
 pub struct Note {
     pub id: Uuid,
     pub body: String,
+    pub title: Option<String>,
     pub contact_id: Option<Uuid>,
     pub project_id: Option<Uuid>,
+    pub folder_id: Option<Uuid>,
+    pub pinned: bool,
     pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct NoteInput {
+    #[serde(default)]
     pub body: String,
+    pub title: Option<String>,
     pub contact_id: Option<Uuid>,
     pub project_id: Option<Uuid>,
+    pub folder_id: Option<Uuid>,
+    pub pinned: Option<bool>,
+}
+
+#[derive(Debug, Serialize, sqlx::FromRow)]
+pub struct Folder {
+    pub id: Uuid,
+    pub name: String,
+    pub parent_id: Option<Uuid>,
+    pub position: i32,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct FolderInput {
+    pub name: String,
+    pub parent_id: Option<Uuid>,
+    pub position: Option<i32>,
 }
 
 #[derive(Debug, Serialize, sqlx::FromRow)]
