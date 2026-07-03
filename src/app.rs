@@ -12,6 +12,7 @@ use crate::auth::{login, logout, LoginThrottle};
 use crate::routes::contacts;
 use crate::routes::dashboard;
 use crate::routes::events;
+use crate::routes::folders;
 use crate::routes::links;
 use crate::routes::notes;
 use crate::routes::projects;
@@ -56,6 +57,8 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/events/{id}/series", patch(events::update_series))
         .route("/api/notes", get(notes::list).post(notes::create))
         .route("/api/notes/{id}", axum::routing::put(notes::update).delete(notes::delete))
+        .route("/api/folders", get(folders::list).post(folders::create))
+        .route("/api/folders/{id}", axum::routing::put(folders::update).delete(folders::delete))
         .route("/api/links", get(links::list).post(links::create))
         .route("/api/links/{id}", axum::routing::put(links::update).delete(links::delete))
         .route("/api/dashboard", get(dashboard::get))

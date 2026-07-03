@@ -213,11 +213,14 @@ async fn note_folder_filter_pins_first(pool: sqlx::PgPool) {
     let (_, f) = send(&app, json_req("POST", "/api/folders", json!({"name":"F"})).with_cookie(&cookie)).await;
     let fid = f["id"].as_str().unwrap().to_string();
 
-    send(&app, json_req("POST", "/api/notes", json!({"body":"plain","folder_id":fid})).with_cookie(&cookie)).await;
+    // pinned note inserted first (older updated_at), plain note inserted second (newer updated_at):
+    // this way "plain" would win under a plain `updated_at desc` order, so the assertion below
+    // only passes if `pinned desc` is actually applied before `updated_at desc`.
     send(&app, json_req("POST", "/api/notes", json!({"body":"pinned","folder_id":fid,"pinned":true})).with_cookie(&cookie)).await;
+    send(&app, json_req("POST", "/api/notes", json!({"body":"plain","folder_id":fid})).with_cookie(&cookie)).await;
 
     let (_, list) = send(&app, json_req("GET", &format!("/api/notes?folder_id={fid}"), json!(null)).with_cookie(&cookie)).await;
     let arr = list.as_array().unwrap();
     assert_eq!(arr.len(), 2);
-    assert_eq!(arr[0]["body"], "pinned"); // pinned sorts first
+    assert_eq!(arr[0]["body"], "pinned"); // pinned sorts first despite being older
 }
