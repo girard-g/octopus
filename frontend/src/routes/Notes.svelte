@@ -315,3 +315,51 @@
     </div>
   </Modal>
 {/if}
+
+<!-- Markdown preview typography. The body is injected via {@html}, so these must be
+     :global() under the scoped .prose-console container; the app's Tailwind reset
+     otherwise strips heading sizes, list markers and blockquote styling. -->
+<style>
+  .prose-console :global(h1),
+  .prose-console :global(h2),
+  .prose-console :global(h3),
+  .prose-console :global(h4) { font-weight: 700; line-height: 1.3; margin: 1.1em 0 0.5em; }
+  .prose-console :global(h1) { font-size: 16px; color: var(--color-ink); border-bottom: 1px solid var(--color-border); padding-bottom: 0.3em; }
+  .prose-console :global(h2) { font-size: 14px; color: var(--color-accent); }
+  .prose-console :global(h3) { font-size: 13px; color: var(--color-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .prose-console :global(h4) { font-size: 12px; color: var(--color-muted); }
+  .prose-console :global(:first-child) { margin-top: 0; }
+
+  .prose-console :global(p) { margin: 0.6em 0; }
+  .prose-console :global(ul),
+  .prose-console :global(ol) { margin: 0.6em 0; padding-left: 1.4em; }
+  .prose-console :global(ul) { list-style: disc; }
+  .prose-console :global(ol) { list-style: decimal; }
+  .prose-console :global(li) { margin: 0.2em 0; }
+  .prose-console :global(li)::marker { color: var(--color-accent-dim); }
+
+  .prose-console :global(blockquote) {
+    margin: 0.7em 0; padding: 0.2em 0.9em;
+    border-left: 2px solid var(--color-accent-dim);
+    color: var(--color-muted); font-style: italic;
+  }
+
+  .prose-console :global(a) { color: var(--color-accent); text-decoration: underline; }
+  .prose-console :global(strong) { color: var(--color-ink); font-weight: 700; }
+  .prose-console :global(hr) { border: 0; border-top: 1px solid var(--color-border); margin: 1.1em 0; }
+
+  .prose-console :global(code) {
+    background: var(--color-surface-2); color: var(--color-accent);
+    padding: 0.05em 0.35em; border-radius: 3px; font-size: 0.92em;
+  }
+  .prose-console :global(pre) {
+    background: var(--color-surface-2); border: 1px solid var(--color-border);
+    border-radius: 4px; padding: 0.8em; margin: 0.7em 0; overflow-x: auto;
+  }
+  .prose-console :global(pre code) { background: none; color: var(--color-ink); padding: 0; }
+
+  .prose-console :global(table) { border-collapse: collapse; margin: 0.7em 0; }
+  .prose-console :global(th),
+  .prose-console :global(td) { border: 1px solid var(--color-border); padding: 0.3em 0.6em; }
+  .prose-console :global(th) { color: var(--color-accent); text-align: left; }
+</style>
