@@ -3,3 +3,4 @@
 node_modules
 /static
 frontend/node_modules
+.superpowers
