@@ -21,6 +21,7 @@
   let draft      = $state(null)
   let saveStatus = $state('idle')     // 'idle' | 'saving' | 'saved'
   let saveTimer  = null
+  let creating   = false // guards against a duplicate POST if persist() re-enters while a create is in flight
 
   const tree         = $derived(buildFolderTree(folders))
   const contactsById = $derived(Object.fromEntries(contacts.map((c) => [c.id, c.name])))
@@ -64,6 +65,7 @@
     clearTimeout(saveTimer); saveTimer = null
     if (!draft) return
     if (!hasContent(draft)) { saveStatus = 'idle'; return } // never write an empty draft; never wipe to empty
+    if (!draft.id && creating) return // a create is already in flight for this draft; the next scheduleSave/blur will retry
     const payload = {
       title: draft.title.trim() || null,
       body: draft.body,
@@ -75,9 +77,10 @@
     saveStatus = 'saving'
     try {
       if (draft.id) { mergeNote(await api.put('/api/notes/' + draft.id, payload)) }
-      else { const n = await api.post('/api/notes', payload); draft.id = n.id; mergeNote(n) }
+      else { creating = true; const n = await api.post('/api/notes', payload); draft.id = n.id; mergeNote(n) }
       saveStatus = 'saved'
     } catch (e) { error = e.message; saveStatus = 'idle' }
+    finally { creating = false }
   }
 
   function scheduleSave() {
@@ -217,7 +220,7 @@
     {#if !draft}
       <p class="font-mono text-[12px] text-faint">// select a note, or press + note</p>
     {:else}
-      <input bind:value={draft.title} oninput={scheduleSave} placeholder="title…" class="mb-2 w-full bg-transparent font-mono text-[15px] font-bold text-ink placeholder:text-faint focus:outline-none" />
+      <input bind:value={draft.title} oninput={scheduleSave} onblur={persist} placeholder="title…" class="mb-2 w-full bg-transparent font-mono text-[15px] font-bold text-ink placeholder:text-faint focus:outline-none" />
 
       <!-- mobile toggle -->
       <div class="mb-2 flex gap-1 md:hidden">
