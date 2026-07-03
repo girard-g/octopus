@@ -40,5 +40,7 @@ export default defineConfig({
     port: 5173,
     proxy: { '/api': 'http://localhost:8090' }, // Rust API in local dev
   },
+  // vitest runs components in jsdom, not SSR; force the browser build of .svelte packages.
+  resolve: process.env.VITEST ? { conditions: ['browser'] } : undefined,
   test: { environment: 'jsdom' },
 })

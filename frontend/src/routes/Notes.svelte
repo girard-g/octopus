@@ -63,23 +63,24 @@
 
   async function persist() {
     clearTimeout(saveTimer); saveTimer = null
-    if (!draft) return
-    if (!hasContent(draft)) { saveStatus = 'idle'; return } // never write an empty draft; never wipe to empty
-    if (!draft.id && creating) return // a create is already in flight for this draft; the next scheduleSave/blur will retry
+    const d = draft
+    if (!d) return
+    if (!hasContent(d)) { if (draft === d) saveStatus = 'idle'; return } // never write an empty draft; never wipe to empty
+    if (!d.id && creating) return // a create is already in flight for this draft; the next scheduleSave/blur will retry
     const payload = {
-      title: draft.title.trim() || null,
-      body: draft.body,
-      folder_id: draft.folder_id,
-      contact_id: draft.contact_id,
-      project_id: draft.project_id,
-      pinned: draft.pinned,
+      title: d.title.trim() || null,
+      body: d.body,
+      folder_id: d.folder_id,
+      contact_id: d.contact_id,
+      project_id: d.project_id,
+      pinned: d.pinned,
     }
-    saveStatus = 'saving'
+    if (draft === d) saveStatus = 'saving'
     try {
-      if (draft.id) { mergeNote(await api.put('/api/notes/' + draft.id, payload)) }
-      else { creating = true; const n = await api.post('/api/notes', payload); draft.id = n.id; mergeNote(n) }
-      saveStatus = 'saved'
-    } catch (e) { error = e.message; saveStatus = 'idle' }
+      if (d.id) { mergeNote(await api.put('/api/notes/' + d.id, payload)) }
+      else { creating = true; const n = await api.post('/api/notes', payload); d.id = n.id; mergeNote(n) }
+      if (draft === d) saveStatus = 'saved'
+    } catch (e) { error = e.message; if (draft === d) saveStatus = 'idle' }
     finally { creating = false }
   }
 
