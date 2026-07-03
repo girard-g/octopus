@@ -32,6 +32,16 @@ async fn folder_crud_and_reparent(pool: sqlx::PgPool) {
 }
 
 #[sqlx::test]
+async fn folder_create_with_nonexistent_parent_is_bad_request(pool: sqlx::PgPool) {
+    std::env::set_var("APP_PASSWORD", "secret");
+    let app = test_app(pool);
+    let cookie = login(&app, "secret").await;
+
+    let (status, _) = send(&app, json_req("POST", "/api/folders", json!({"name":"orphan","parent_id":"00000000-0000-0000-0000-000000000000"})).with_cookie(&cookie)).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+}
+
+#[sqlx::test]
 async fn folder_delete_cascades_and_unfiles_notes(pool: sqlx::PgPool) {
     std::env::set_var("APP_PASSWORD", "secret");
     let app = test_app(pool);
