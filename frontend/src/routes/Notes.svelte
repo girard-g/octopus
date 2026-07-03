@@ -275,7 +275,7 @@
 {#snippet folderNode(node, depth)}
   <div class="flex items-center gap-1" style="padding-left:{depth * 12}px">
     <button onclick={() => toggle(node.id)} class="font-mono text-[11px] text-faint">{node.children.length || notesIn(node.id).length ? (expanded.has(node.id) ? '▾' : '▸') : '·'}</button>
-    <button onclick={() => (selectedFolder = node.id)} class="flex-1 truncate text-left font-mono text-[12px] {selectedFolder === node.id ? 'text-accent' : 'text-muted'}">{node.name}</button>
+    <button onclick={() => { selectedFolder = node.id; toggle(node.id) }} class="flex-1 truncate text-left font-mono text-[12px] {selectedFolder === node.id ? 'text-accent' : 'text-muted'}">{node.name}</button>
     <button onclick={() => openEditFolder(node)} aria-label="Edit folder" class="font-mono text-[12px] text-faint transition hover:text-accent">✎</button>
     <button onclick={() => (folderToDelete = node)} aria-label="Delete folder" class="font-mono text-[12px] text-faint transition hover:text-st-lost">×</button>
   </div>
