@@ -1,10 +1,11 @@
 <script>
   import { api } from '../lib/api.js'
   import Modal from '../lib/components/Modal.svelte'
-  import { noteTitle, buildFolderTree, sortNotes, searchNotes, folderPath, folderBlastRadius } from '../lib/notes.js'
+  import { noteTitle, buildFolderTree, sortNotes, searchNotes, folderPath, folderBlastRadius, folderSubtreeIds } from '../lib/notes.js'
   import { renderMarkdown } from '../lib/markdown.js'
 
   const FIELD = 'w-full rounded-sm border border-border bg-surface-2 px-2.5 py-2 font-mono text-[13px] text-ink placeholder:text-faint focus:border-accent focus:shadow-[0_0_0_3px_rgba(62,245,196,0.14)] focus:outline-none'
+  const SELECT = 'ml-1 rounded-sm border border-border bg-surface-2 px-1.5 py-1 text-ink'
 
   let folders  = $state([])
   let notes    = $state([])
@@ -27,10 +28,22 @@
   const contactsById = $derived(Object.fromEntries(contacts.map((c) => [c.id, c.name])))
   const projectsById = $derived(Object.fromEntries(projects.map((p) => [p.id, p.title])))
   const searchHits   = $derived(query.trim() ? sortNotes(searchNotes(notes, query)) : [])
-  const unfiled      = $derived(sortNotes(notes.filter((n) => !n.folder_id)))
+
+  // Bucket notes by folder once (sorted globally, so each bucket stays pinned-first/newest).
+  // O(n) per notes change instead of a filter+sort per folder row on every render.
+  const notesByFolder = $derived.by(() => {
+    const m = new Map()
+    for (const n of sortNotes(notes)) {
+      const k = n.folder_id ?? null
+      if (!m.has(k)) m.set(k, [])
+      m.get(k).push(n)
+    }
+    return m
+  })
+  const unfiled = $derived(notesByFolder.get(null) ?? [])
 
   function notesIn(folderId) {
-    return sortNotes(notes.filter((n) => n.folder_id === folderId))
+    return notesByFolder.get(folderId) ?? []
   }
 
   async function load() {
@@ -127,26 +140,10 @@
   function openNewFolder() { folderEdit = { id: null, name: '', parent_id: selectedFolder } }
   function openEditFolder(node) { folderEdit = { id: node.id, name: node.name, parent_id: node.parent_id ?? null } }
 
-  // inclusive set of a folder's own id + all descendants (walk children via parent_id)
-  function descendantIds(id) {
-    const childrenOf = new Map()
-    for (const f of folders) {
-      if (!childrenOf.has(f.parent_id)) childrenOf.set(f.parent_id, [])
-      childrenOf.get(f.parent_id).push(f.id)
-    }
-    const set = new Set([id])
-    const stack = [id]
-    while (stack.length) {
-      const cur = stack.pop()
-      for (const c of childrenOf.get(cur) || []) { set.add(c); stack.push(c) }
-    }
-    return set
-  }
-
   // re-parent targets: exclude the folder itself and all its descendants (no cycles)
   const parentOptions = $derived.by(() => {
     if (!folderEdit || folderEdit.id == null) return folders
-    const excl = descendantIds(folderEdit.id)
+    const excl = folderSubtreeIds(folders, folderEdit.id)
     return folders.filter((f) => !excl.has(f.id))
   })
 
@@ -162,8 +159,8 @@
         folders = [...folders, f]
         if (folderEdit.parent_id) expanded = new Set(expanded).add(folderEdit.parent_id)
       } else {
-        await api.put('/api/folders/' + folderEdit.id, payload)
-        await load() // reload so the derived tree / breadcrumbs stay consistent after a re-parent
+        const updated = await api.put('/api/folders/' + folderEdit.id, payload)
+        folders = folders.map((f) => (f.id === updated.id ? updated : f)) // tree/breadcrumbs re-derive from folders
       }
       folderEdit = null
     } catch (err) { error = err.message }
@@ -246,19 +243,19 @@
       <!-- footer -->
       <div class="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3 font-mono text-[11px]">
         <label class="text-faint">folder
-          <select bind:value={draft.folder_id} onchange={scheduleSave} class="ml-1 rounded-sm border border-border bg-surface-2 px-1.5 py-1 text-ink">
+          <select bind:value={draft.folder_id} onchange={scheduleSave} class={SELECT}>
             <option value={null}>unfiled</option>
             {#each folders as f (f.id)}<option value={f.id}>{folderPath(folders, f.id)}</option>{/each}
           </select>
         </label>
         <label class="text-faint">@contact
-          <select value={draft.contact_id ?? ''} onchange={(e) => onLinkChange('contact', e.target.value)} class="ml-1 rounded-sm border border-border bg-surface-2 px-1.5 py-1 text-ink">
+          <select value={draft.contact_id ?? ''} onchange={(e) => onLinkChange('contact', e.target.value)} class={SELECT}>
             <option value="">—</option>
             {#each contacts as c (c.id)}<option value={c.id}>{c.name}</option>{/each}
           </select>
         </label>
         <label class="text-faint">#project
-          <select value={draft.project_id ?? ''} onchange={(e) => onLinkChange('project', e.target.value)} class="ml-1 rounded-sm border border-border bg-surface-2 px-1.5 py-1 text-ink">
+          <select value={draft.project_id ?? ''} onchange={(e) => onLinkChange('project', e.target.value)} class={SELECT}>
             <option value="">—</option>
             {#each projects as p (p.id)}<option value={p.id}>{p.title}</option>{/each}
           </select>

@@ -47,18 +47,26 @@ export function folderPath(folders, id) {
   return parts.join(' / ')
 }
 
-export function folderBlastRadius(folders, notes, id) {
+// inclusive set of a folder's own id + all descendant folder ids (walk children via parent_id)
+export function folderSubtreeIds(folders, id) {
   const childrenOf = new Map()
   for (const f of folders) {
     if (!childrenOf.has(f.parent_id)) childrenOf.set(f.parent_id, [])
     childrenOf.get(f.parent_id).push(f.id)
   }
-  const subtree = new Set([id])
+  const set = new Set([id])
   const stack = [id]
   while (stack.length) {
     const cur = stack.pop()
-    for (const c of childrenOf.get(cur) || []) { subtree.add(c); stack.push(c) }
+    for (const c of childrenOf.get(cur) || []) { set.add(c); stack.push(c) }
   }
-  const noteCount = notes.filter((n) => subtree.has(n.folder_id)).length
-  return { subfolders: subtree.size - 1, notes: noteCount }
+  return set
+}
+
+export function folderBlastRadius(folders, notes, id) {
+  const subtree = folderSubtreeIds(folders, id)
+  return {
+    subfolders: subtree.size - 1,
+    notes: notes.filter((n) => subtree.has(n.folder_id)).length,
+  }
 }
